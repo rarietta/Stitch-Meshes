@@ -571,9 +571,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="PluginMain.cpp" />
+    <ClCompile Include="PolyMeshFace.cpp" />
     <ClCompile Include="StitchMeshNode.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="PolyMeshFace.h" />
     <ClInclude Include="StitchMeshNode.h" />
     <ClInclude Include="matrix.h" />
   </ItemGroup>

@@ -15,12 +15,18 @@
     <ClCompile Include="StitchMeshNode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PolyMeshFace.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="matrix.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="StitchMeshNode.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PolyMeshFace.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

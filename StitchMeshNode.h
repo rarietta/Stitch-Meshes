@@ -22,6 +22,12 @@
 #include <maya/MFnMeshData.h>
 
 #include <maya/MIOStream.h>
+#include "PolyMeshFace.h"
+#include <vector>
+
+using namespace std;
+
+typedef vector<PolyMeshFace> PolyMeshFaceLoop;
 
 class StitchMeshNode : public MPxNode
 {
@@ -41,9 +47,7 @@ public:
 	// Class variables for stitch direction and tesselation					//
 	//----------------------------------------------------------------------//
 
-	MIntArray*		MWaleEdges;
-	MIntArray*		MCourseEdgesBkwd;
-	MIntArray*		MCourseEdgesFwd;
+	vector<PolyMeshFaceLoop> MPolyMeshFaceLoops;
 
 	//----------------------------------------------------------------------//
 	// Node Attributes														//
@@ -55,6 +59,5 @@ public:
 	static MTypeId	id;
 
 protected:
-	static MStatus GetSelectedMesh(MObjectArray &objects);
 	//MObject createMesh(MObject& outData, MStatus& stat);
 };

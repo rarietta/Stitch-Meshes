@@ -1,6 +1,24 @@
-string $select[] = `ls -sl`;
+
+//----------------------------------------------------------------------//
+// Get selected shape as input mesh										//
+//----------------------------------------------------------------------//
+
+string $selection[] = `ls -sl`;
+string $shapes[] = `listRelatives -children -shapes $selection[0]`;
+string $inputMesh = $shapes[0];
+
+//----------------------------------------------------------------------//
+// Create transform/mesh/shader for output connections					//
+//----------------------------------------------------------------------//
+
 createNode transform -n StitchMeshTransform;
 createNode mesh -n StitchMeshShape1 -p StitchMeshTransform;
 sets -add initialShadingGroup StitchMeshShape1;
+
+//----------------------------------------------------------------------//
+// Create stitch meshes node and connect input mesh and output mesh		//
+//----------------------------------------------------------------------//
+
 createNode StitchMeshNode -n StitchMeshNode1;
+connectAttr ($inputMesh + ".outMesh") StitchMeshNode1.inputMesh;
 connectAttr StitchMeshNode1.outputMesh StitchMeshShape1.inMesh;

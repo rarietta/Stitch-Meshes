@@ -19,6 +19,10 @@
 #include <maya/MItMeshPolygon.h>
 #include <maya/MItMeshEdge.h>
 #include <maya/MFnMesh.h>
+#include <maya/MPointArray.h>
+#include <vector>
+
+using namespace std;
 
 #define McheckErr(stat,msg)				\
 	if ( MS::kSuccess != stat ) {		\
@@ -32,75 +36,13 @@ MObject StitchMeshNode::stitchSize;
 MObject StitchMeshNode::outputMesh;
 MTypeId StitchMeshNode::id( 0x00004 );
 
-//==============================================================================================================//
-// Adapted from: http://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/maya/MSelectionList.html
-//==============================================================================================================//
-
- MStatus StitchMeshNode::GetSelectedMesh(MObjectArray& objects) {
-	 
-	 // get the current selection list from maya
-	 MSelectionList selected;
-	 MGlobal::getActiveSelectionList(selected);
-	 MItSelectionList itSelected(selected);
-	 MObject obj;	
-
-	 cout << "number of selected items = " << selected.length() << endl;
-
-	 // iterate through all selected items
-	 while (!itSelected.isDone()) {
-
-		MDagPath dagPath;
-		MObject	 component;
-
-		itSelected.getDependNode(obj);
-
-		// if the selected object is of the type we are looking for
-		if (obj.hasFn(MFn::kMesh)) { objects.append(obj); }
-		
-		// if the selected object is a transform, check it's kids
-		else if (obj.hasFn(MFn::kTransform)) {
-		
-			MFnTransform fn(obj);
-			
-			// loop through each child of the transform
-			for (int j = 0; j < fn.childCount(); j++)
-			{
-				// retrieve the j'th child of the transform node
-				MObject child = fn.child(j);
-			
-				// if the child is MFn::kMesh append it to the list
-				if (child.hasFn(MFn::kMesh)) { objects.append(child); }
-			}
-		}
-
-		itSelected.next();
-	}
-	cout << objects.length() << endl;
-	return MStatus::kSuccess;
- }
 
 //==============================================================================================================//
 // Initialize the Node                                                                                          //
 //==============================================================================================================//
 void* StitchMeshNode::creator()
 {
-	StitchMeshNode *newNode = new StitchMeshNode;
-	/*
-	// Get selected object
-	MObjectArray objs;
-	GetSelectedMesh(objs);
-
-	// Assert that only one mesh object is given as input
-	if (objs.length() != 1) {
-		cerr << "Incorrect number of meshes selected." << endl;
-		cerr << "Please select one poly mesh for the StitchMeshes tool.\n" << endl;
-		exit(-1);
-	}
-
-	cout << objs[0].apiTypeStr() << endl;
-
-	newNode->inputMesh = objs[0];*/
-	return newNode;
+	return new StitchMeshNode;
 }
 
 //==============================================================================================================//
@@ -122,8 +64,10 @@ MStatus StitchMeshNode::initialize()
 
 	StitchMeshNode::stitchSize = nAttr.create("stitchSize", "ss", MFnNumericData::kFloat, 1.0, &returnStatus);
 	McheckErr(returnStatus, "ERROR creating StitchMeshNode stitchSize attribute\n");
-	nAttr.setSoftMin(0.0);
-	nAttr.setSoftMax(90.0);
+	nAttr.setMin(0.25);
+	nAttr.setMax(8.0);
+	nAttr.setSoftMin(0.25);
+	nAttr.setSoftMax(8.0);
 	
 	//----------------------------------------------------------------------------------------------------------//
 	// Create Input Mesh Attribute																                //
@@ -191,6 +135,11 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		MDataHandle inputMeshDataHandle = data.inputValue(inputMesh, &returnStatus); 
 		McheckErr(returnStatus, "Error getting input mesh data handle\n");
 		MObject inputMeshData = inputMeshDataHandle.asMesh();
+		MDagPath inputDagPath;
+		MDagPath::getAPathTo(inputMeshData, inputDagPath);		// path to input mesh object in DAG
+		MFnMesh inputMeshFn(inputMeshData);						// mesh function set for mesh object
+		MItMeshPolygon inputItFaces(inputDagPath);				// face iterator for mesh object
+		MItMeshEdge inputItEdges(inputDagPath);					// edge iterator for mesh object
 		
 		// Get default stitch size
 		MDataHandle stitchSizeDataHandle = data.inputValue(stitchSize, &returnStatus); 
@@ -198,40 +147,29 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		float stitchSizeData = stitchSizeDataHandle.asFloat();
 
 		//--------------------------------------------------------------------------------------------------------------//
-		// TEMPORARY HACK - Get selected input mesh																		//
-		//--------------------------------------------------------------------------------------------------------------//
-		/*
-		MObjectArray objs;
-		GetSelectedMesh(objs);
-
-		// Assert that only one mesh object is given as input
-		if (objs.length() != 1) {
-			cerr << "Incorrect number of meshes selected." << endl;
-			cerr << "Please select one poly mesh for the StitchMeshes tool.\n" << endl;
-			return MStatus::kFailure;
-		}
-		*/
-		// Important Maya API function sets
-		MDagPath inputDagPath;
-		MDagPath::getAPathTo(inputMeshData, inputDagPath);	// path to input mesh object in DAG
-		MFnMesh inputMeshFn(inputDagPath);					// mesh function set for mesh object
-		MItMeshPolygon inputItFaces(inputDagPath);			// face iterator for mesh object
-		MItMeshEdge inputItEdges(inputDagPath);				// edge iterator for mesh object
-
-		//--------------------------------------------------------------------------------------------------------------//
 		// Get input data from edge loop/stitch direction specification by user											//
 		//--------------------------------------------------------------------------------------------------------------//
 
-		int numPolyFaceLoops = 1;
-		MIntArray *MWaleEdges		= new MIntArray[numPolyFaceLoops];	// indices of wale edges for poly loop
-		MIntArray *MCourseEdgesBkwd = new MIntArray[numPolyFaceLoops];	// indices of backwards course edges for poly loop 
-		MIntArray *MCourseEdgesFwd	= new MIntArray[numPolyFaceLoops];	// indices of forwards course edges for poly loop
+		int numPolyMeshFaceLoops = 1;
+		for (int i = 0; i < MPolyMeshFaceLoops.size(); i++)
+			MPolyMeshFaceLoops[i].clear();
+		MPolyMeshFaceLoops.resize(numPolyMeshFaceLoops);
+		MIntArray cB, cF; 
 		
-		// HARDCODED HACK FOR NOW
-		int waleEdges[] = {4, 5};
-		int numWaleEdges = sizeof(waleEdges) / sizeof(waleEdges[0]);
-		MWaleEdges[0] = MIntArray(waleEdges, numWaleEdges);
-
+		// polyMeshFace1
+		cB.clear(); cF.clear();
+		cB.append(0); cB.append(1);
+		cF.append(2); cF.append(3);
+		PolyMeshFace pmf1(cB, cF);
+		MPolyMeshFaceLoops[0].push_back(pmf1);
+		
+		// polyMeshFace2
+		cB.clear(); cF.clear();
+		cB.append(1); cB.append(7);
+		cF.append(3); cF.append(5);
+		PolyMeshFace pmf2(cB, cF);
+		MPolyMeshFaceLoops[0].push_back(pmf2);
+		
 		//--------------------------------------------------------------------------------------------------------------//
 		// Get output handle for mesh creation																			//
 		//--------------------------------------------------------------------------------------------------------------//
@@ -253,75 +191,107 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		// Iterate through all poly face edge loops to tesselate														//
 		//--------------------------------------------------------------------------------------------------------------//
 
-		for (int n = 0; n < numPolyFaceLoops; n++)
+		for (int n = 0; n < numPolyMeshFaceLoops; n++)
 		{
 			//----------------------------------------------------------------------------------------------------------//
 			// Find the average length of the wale edges in order to determine the uniform number of subdivisions		//
 			// along the entirety of the input face loop																//
 			//----------------------------------------------------------------------------------------------------------//
 			
-			int2 vertices;
-			MPoint v0, v1;
+			// get current poly mesh face loop
+			PolyMeshFaceLoop currentLoop = MPolyMeshFaceLoops[n];
+
+			// local variables
+			int2 vertices; 
+			MPoint w0, w1;
 			double totalLength;
-			for (int i = 0; i < numWaleEdges; i++) {
-				outputMeshFn.getEdgeVertices(MWaleEdges[n][i], vertices);
-				outputMeshFn.getPoint(vertices[0], v0);
-				outputMeshFn.getPoint(vertices[1], v1);
-				totalLength += (v0 - v1).length();
+			
+			// loop through all faces to examine wale edge lengths
+			for (int i = 0; i < currentLoop.size(); i++) {
+
+				// get first wale edge
+				PolyMeshFace currentFace = (PolyMeshFace) currentLoop[i];
+				currentFace.getWaleEdge1(vertices);
+				inputMeshFn.getPoint(vertices[0], w0);
+				inputMeshFn.getPoint(vertices[1], w1);
+				totalLength += (w1 - w0).length();
+
+				// get second wale edge only for final face
+				// (assuming potential for unclosed loops)
+				if (i == currentLoop.size()-1) {
+					currentFace.getWaleEdge1(vertices);
+					inputMeshFn.getPoint(vertices[0], w0);
+					inputMeshFn.getPoint(vertices[1], w1);
+					totalLength += (w1 - w0).length();
+				}
 			} 
-			double avgLength = totalLength / (double) numWaleEdges;
-			int numWaleDivisions = floor(avgLength / stitchSizeData);
-		
-			//----------------------------------------------------------------------------------------------------------//
-			// Subdivide the wale edges of the input mesh and split the polygon faces across the wale edges in sequence	//
-			//----------------------------------------------------------------------------------------------------------//
-			
-			/*
-			double edgeLength;
-			MIntArray edgeID(1,0);
-			for (int i = 0; i < numWaleEdges;i++) {
-				edgeID.set(MWaleEdges[n][i], 0);
-				outputMeshFn.subdivideEdges(edgeID, numWaleDivisions);
-			}
-			*/
-			
-			// sequence of internal points
-			MFloatPointArray MInternalPoints;
-			MInternalPoints.clear();
 
-			// placement types (internal point vs. edge point)
-			MIntArray MPlacements;
-			MPlacements.clear();
-			for (int i = 0; i < numWaleEdges; i++)
-				MPlacements.append(MFnMesh::kOnEdge);
-		
-			// sequence of edge indices
-			MIntArray MEdgeList;
-			MEdgeList.clear();
-			for (int i = 0; i < numWaleEdges; i++)
-				MEdgeList.append(waleEdges[i]);
-		
-			// sequence of edge factors
-			// (length along edges for all edge subpoints)
-			MFloatArray MEdgeFactors;
-			for (int i = numWaleDivisions; i > 1; i--)
+			// divide total sum by number of edges
+			double avgLength = totalLength / (currentLoop.size() + 1);
+			int numWaleDivisions = floor(avgLength / (stitchSizeData));
+
+			//----------------------------------------------------------------------------------------------------------//
+			// Create tessellated polygon subfaces																		//
+			//----------------------------------------------------------------------------------------------------------//
+
+			// loop through each face in loop to tessellate
+			for (int i = 0; i < currentLoop.size(); i++)
 			{
-				MEdgeFactors.clear();
-				for (int j = 0; j < numWaleEdges; j++)
-					MEdgeFactors.append(1.0 - (1.0/i));
-				returnStatus = outputMeshFn.split(MPlacements, MEdgeList, MEdgeFactors, MInternalPoints);
-				cerr << "splitStatus = " << returnStatus << endl;
-			}
-		
-			outputMeshFn.updateSurface();
-		}
+				MPoint v0, v1;
+				PolyMeshFace currentFace = currentLoop[i];
+				
+				// HACK FOR SQUARE FACE
+				// get backwards-first corner as origin
+				MPoint origin;
+				inputMeshFn.getPoint(currentFace.courseEdgeBkwd[0], origin);
 
+				// HACK FOR SQUARE FACE
+				// vector corresponding to first wale edge
+				MFloatVector waleDir;
+				currentFace.getWaleEdge1(vertices); 
+				inputMeshFn.getPoint(vertices[0], v0);
+				inputMeshFn.getPoint(vertices[1], v1);
+				waleDir = v1-v0;
+
+				// HACK FOR SQUARE FACE
+				// vector corresponding to backwards course edge
+				MIntArray courseVtxs;
+				MFloatVector courseDir;
+				currentFace.getCourseEdgeBkwd(courseVtxs);
+				inputMeshFn.getPoint(courseVtxs[0], v0);
+				inputMeshFn.getPoint(courseVtxs[1], v1);
+				courseDir = v1-v0;
+
+				MPointArray vertexLoop;
+				for (int j = 0; j < numWaleDivisions; j++) {
+					for (int k = 0; k < numWaleDivisions; k++) {
+						
+						// clear current face loop
+						vertexLoop.clear();
+
+						// get points in order
+						MPoint p0 = origin + (waleDir *   j   / numWaleDivisions) + (courseDir *   k   / numWaleDivisions);
+						MPoint p1 = origin + (waleDir * (j+1) / numWaleDivisions) + (courseDir *   k   / numWaleDivisions);
+						MPoint p2 = origin + (waleDir * (j+1) / numWaleDivisions) + (courseDir * (k+1) / numWaleDivisions);
+						MPoint p3 = origin + (waleDir *   j   / numWaleDivisions) + (courseDir * (k+1) / numWaleDivisions);
+
+						// append to list
+						vertexLoop.append(p0);
+						vertexLoop.append(p1);
+						vertexLoop.append(p2);
+						vertexLoop.append(p3);
+
+						// add polygon to mesh
+						outputMeshFn.addPolygon(vertexLoop);
+
+					} // j face direction loop
+				} // k face direction loop 
+			} // per face loop
+		} // per face-loop loop
+
+		outputMeshFn.updateSurface();
 		outputHandle.set(newOutputData);
 		data.setClean( plug );
-		
-		//delete MWaleEdges;
-		//delete MCourseEdgesBkwd;
-		//delete MCourseEdgesFwd;
 	} 
 	
 	//------------------------------------------------------------------------------------------------------------------//
