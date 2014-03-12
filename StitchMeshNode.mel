@@ -1,0 +1,6 @@
+string $select[] = `ls -sl`;
+createNode transform -n StitchMeshTransform;
+createNode mesh -n StitchMeshShape1 -p StitchMeshTransform;
+sets -add initialShadingGroup StitchMeshShape1;
+createNode StitchMeshNode -n StitchMeshNode1;
+connectAttr StitchMeshNode1.outputMesh StitchMeshShape1.inMesh;
