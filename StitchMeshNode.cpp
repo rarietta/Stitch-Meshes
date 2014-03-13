@@ -148,6 +148,7 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 
 		//--------------------------------------------------------------------------------------------------------------//
 		// Get input data from edge loop/stitch direction specification by user											//
+		// HARD-CODED UNTIL THIS PART IS DONE																			//
 		//--------------------------------------------------------------------------------------------------------------//
 
 		int numPolyMeshFaceLoops = 1;
@@ -204,16 +205,19 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 			// local variables
 			int2 vertices; 
 			MPoint w0, w1;
-			double totalLength;
+			double totalLength = 0.0;
 			
 			// loop through all faces to examine wale edge lengths
 			for (int i = 0; i < currentLoop.size(); i++) {
 
 				// get first wale edge
-				PolyMeshFace currentFace = (PolyMeshFace) currentLoop[i];
+				PolyMeshFace currentFace = currentLoop[i];
 				currentFace.getWaleEdge1(vertices);
 				inputMeshFn.getPoint(vertices[0], w0);
 				inputMeshFn.getPoint(vertices[1], w1);
+				cout << "w0 = (" << w0[0] << ", " << w0[1] << ", " << w0[2] << ")" << endl;
+				cout << "w1 = (" << w1[0] << ", " << w1[1] << ", " << w1[2] << ")" << endl;
+				cout << "length of (w0, w1) = " << (w1-w0).length() << "\n" << endl;
 				totalLength += (w1 - w0).length();
 
 				// get second wale edge only for final face
@@ -229,6 +233,11 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 			// divide total sum by number of edges
 			double avgLength = totalLength / (currentLoop.size() + 1);
 			int numWaleDivisions = floor(avgLength / (stitchSizeData));
+			cout << "totalLength = " << totalLength << endl;
+			cout << "averageLength = " << avgLength << endl;
+			cout << "stitchSizeData = " << stitchSizeData << endl;
+			cout << "numDivisions = " << numWaleDivisions << "/n" << endl;
+			cout << "--------------------------------------" << endl;
 
 			//----------------------------------------------------------------------------------------------------------//
 			// Create tessellated polygon subfaces																		//
@@ -238,29 +247,46 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 			for (int i = 0; i < currentLoop.size(); i++)
 			{
 				MPoint v0, v1;
+				int2 waleVtxs;
+				MIntArray courseVtxs;
 				PolyMeshFace currentFace = currentLoop[i];
 				
-				// HACK FOR SQUARE FACE
+				// HACK FOR QUAD FACE
 				// get backwards-first corner as origin
 				MPoint origin;
 				inputMeshFn.getPoint(currentFace.courseEdgeBkwd[0], origin);
 
-				// HACK FOR SQUARE FACE
+				// HACK FOR QUAD FACE
 				// vector corresponding to first wale edge
-				MFloatVector waleDir;
-				currentFace.getWaleEdge1(vertices); 
-				inputMeshFn.getPoint(vertices[0], v0);
-				inputMeshFn.getPoint(vertices[1], v1);
-				waleDir = v1-v0;
+				MFloatVector wale1Dir;
+				currentFace.getWaleEdge1(waleVtxs); 
+				inputMeshFn.getPoint(waleVtxs[0], v0);
+				inputMeshFn.getPoint(waleVtxs[1], v1);
+				wale1Dir = v1-v0;
 
-				// HACK FOR SQUARE FACE
+				// HACK FOR QUAD FACE
+				// vector corresponding to second wale edge
+				MFloatVector wale2Dir;
+				currentFace.getWaleEdge2(waleVtxs); 
+				inputMeshFn.getPoint(waleVtxs[0], v0);
+				inputMeshFn.getPoint(waleVtxs[1], v1);
+				wale2Dir = v1-v0;
+
+				// HACK FOR QUAD FACE
 				// vector corresponding to backwards course edge
-				MIntArray courseVtxs;
-				MFloatVector courseDir;
+				MFloatVector course1Dir;
 				currentFace.getCourseEdgeBkwd(courseVtxs);
 				inputMeshFn.getPoint(courseVtxs[0], v0);
 				inputMeshFn.getPoint(courseVtxs[1], v1);
-				courseDir = v1-v0;
+				course1Dir = v1-v0;
+				
+				// HACK FOR QUAD FACE
+				// vector corresponding to backwards course edge
+				MFloatVector course2Dir;
+				currentFace.getCourseEdgeBkwd(courseVtxs);
+				inputMeshFn.getPoint(courseVtxs[0], v0);
+				inputMeshFn.getPoint(courseVtxs[1], v1);
+				course2Dir = v1-v0;
 
 				MPointArray vertexLoop;
 				for (int j = 0; j < numWaleDivisions; j++) {
@@ -269,11 +295,27 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 						// clear current face loop
 						vertexLoop.clear();
 
-						// get points in order
-						MPoint p0 = origin + (waleDir *   j   / numWaleDivisions) + (courseDir *   k   / numWaleDivisions);
-						MPoint p1 = origin + (waleDir * (j+1) / numWaleDivisions) + (courseDir *   k   / numWaleDivisions);
-						MPoint p2 = origin + (waleDir * (j+1) / numWaleDivisions) + (courseDir * (k+1) / numWaleDivisions);
-						MPoint p3 = origin + (waleDir *   j   / numWaleDivisions) + (courseDir * (k+1) / numWaleDivisions);
+						// get points in counterclockwise order
+						MPoint p0 = origin
+							+ (wale1Dir * j / numWaleDivisions) * (1.0 - (double)k/numWaleDivisions)
+							+ (wale2Dir * j / numWaleDivisions) * ((double)k/numWaleDivisions) 
+							+ (course1Dir * k / numWaleDivisions) * (1.0 - (double)j/numWaleDivisions)
+							+ (course2Dir * k / numWaleDivisions) * ((double)j/numWaleDivisions);
+						MPoint p1 = origin 
+							+ (wale1Dir * (j+1) / numWaleDivisions) * (1.0 - (double)k/numWaleDivisions)
+							+ (wale2Dir * (j+1) / numWaleDivisions) * ((double)k/numWaleDivisions)
+							+ (course1Dir *   k   / numWaleDivisions) * (1.0 - (double)(j+1)/numWaleDivisions)
+							+ (course2Dir *   k   / numWaleDivisions) * ((double)(j+1)/numWaleDivisions);
+						MPoint p2 = origin 
+							+ (wale1Dir * (j+1) / numWaleDivisions) * (1.0 - (double)(k+1)/numWaleDivisions)
+							+ (wale2Dir * (j+1) / numWaleDivisions) * ((double)(k+1)/numWaleDivisions)
+							+ (course1Dir * (k+1) / numWaleDivisions) * (1.0 - (double)(j+1)/numWaleDivisions)
+							+ (course2Dir * (k+1) / numWaleDivisions) * ((double)(j+1)/numWaleDivisions);
+						MPoint p3 = origin 
+							+ (wale1Dir *   j   / numWaleDivisions) * (1.0 - (double)(k+1)/numWaleDivisions)
+							+ (wale2Dir *   j   / numWaleDivisions) * ((double)(k+1)/numWaleDivisions)
+							+ (course1Dir * (k+1) / numWaleDivisions) * (1.0 - (double)j/numWaleDivisions)
+							+ (course2Dir * (k+1) / numWaleDivisions) * ((double)j/numWaleDivisions);
 
 						// append to list
 						vertexLoop.append(p0);

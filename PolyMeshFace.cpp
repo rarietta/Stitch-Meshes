@@ -9,14 +9,6 @@ PolyMeshFace::PolyMeshFace(MIntArray& cBkwd, MIntArray& cFwd)
 {
 	courseEdgeBkwd.copy(cBkwd);
 	courseEdgeFwd.copy(cFwd);
-	
-	for (int i = 0; i < courseEdgeBkwd.length(); i++)
-		cout << courseEdgeBkwd[i] << "\t";
-	cout << "\n";
-	
-	for (int i = 0; i < courseEdgeFwd.length(); i++)
-		cout << courseEdgeFwd[i] << "\t";
-	cout << "\n";
 }
 
 PolyMeshFace::~PolyMeshFace(void)
