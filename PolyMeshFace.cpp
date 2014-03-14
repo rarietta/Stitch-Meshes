@@ -5,27 +5,27 @@ PolyMeshFace::PolyMeshFace(void)
 {
 }
 
-PolyMeshFace::PolyMeshFace(MIntArray& cBkwd, MIntArray& cFwd)
+PolyMeshFace::PolyMeshFace(MIntArray& cBkwd, MIntArray& cFwrd)
 {
 	courseEdgeBkwd.copy(cBkwd);
-	courseEdgeFwd.copy(cFwd);
+	courseEdgeFwrd.copy(cFwrd);
 }
 
 PolyMeshFace::~PolyMeshFace(void)
 {
 	courseEdgeBkwd.clear();
-	courseEdgeFwd.clear();
+	courseEdgeFwrd.clear();
 }
 
 MStatus	PolyMeshFace::getWaleEdge1(int2& waleEdge) {
 	waleEdge[0] = courseEdgeBkwd[0];
-	waleEdge[1] = courseEdgeFwd[0];
+	waleEdge[1] = courseEdgeFwrd[0];
 	return MStatus::kSuccess;
 }
 
 MStatus PolyMeshFace::getWaleEdge2(int2& waleEdge) {
 	waleEdge[0] = courseEdgeBkwd[courseEdgeBkwd.length()-1];
-	waleEdge[1] = courseEdgeFwd[courseEdgeFwd.length()-1];
+	waleEdge[1] = courseEdgeFwrd[courseEdgeFwrd.length()-1];
 	return MStatus::kSuccess;
 }
 
@@ -34,7 +34,7 @@ MStatus PolyMeshFace::getCourseEdgeBkwd(MIntArray& bkwdEdge) {
 	return MStatus::kSuccess;
 }
 
-MStatus PolyMeshFace::getCourseEdgeFwd(MIntArray& fwdEdge) {
-	fwdEdge.copy(courseEdgeFwd);
+MStatus PolyMeshFace::getCourseEdgeFwrd(MIntArray& fwrdEdge) {
+	fwrdEdge.copy(courseEdgeFwrd);
 	return MStatus::kSuccess;
 }

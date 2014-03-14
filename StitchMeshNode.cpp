@@ -30,6 +30,12 @@ using namespace std;
 		return MStatus::kFailure;		\
 	}
 
+#define LerpInt(v1,v2,pct)				\
+	v1 + floor(pct*(v2-v1))
+
+#define LerpVec(v1,v2,pct)				\
+	v1 + pct*(v2-v1)
+
 MStatus returnStatus;
 MObject StitchMeshNode::inputMesh;
 MObject StitchMeshNode::stitchSize;
@@ -151,25 +157,43 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		// HARD-CODED UNTIL THIS PART IS DONE																			//
 		//--------------------------------------------------------------------------------------------------------------//
 
-		int numPolyMeshFaceLoops = 1;
+		int numPolyMeshFaceLoops = 2;
 		for (int i = 0; i < MPolyMeshFaceLoops.size(); i++)
 			MPolyMeshFaceLoops[i].clear();
 		MPolyMeshFaceLoops.resize(numPolyMeshFaceLoops);
 		MIntArray cB, cF; 
-		
-		// polyMeshFace1
+		 
+		// 4, 5, 7 
+		// 2, 3, 9
+		// 0, 1, 11
+
+		// Loop 1, Face 1
 		cB.clear(); cF.clear();
 		cB.append(0); cB.append(1);
 		cF.append(2); cF.append(3);
-		PolyMeshFace pmf1(cB, cF);
-		MPolyMeshFaceLoops[0].push_back(pmf1);
+		PolyMeshFace pmf11(cB, cF);
+		MPolyMeshFaceLoops[0].push_back(pmf11);
 		
-		// polyMeshFace2
+		// Loop 1, Face 2
 		cB.clear(); cF.clear();
-		cB.append(1); cB.append(7);
-		cF.append(3); cF.append(5);
-		PolyMeshFace pmf2(cB, cF);
-		MPolyMeshFaceLoops[0].push_back(pmf2);
+		cB.append(1); cB.append(11);
+		cF.append(3); cF.append(9);
+		PolyMeshFace pmf12(cB, cF);
+		MPolyMeshFaceLoops[0].push_back(pmf12);
+		
+		// Loop 2, Face 1
+		cB.clear(); cF.clear();
+		cB.append(2); cB.append(3);
+		cF.append(4); cF.append(5);
+		PolyMeshFace pmf21(cB, cF);
+		MPolyMeshFaceLoops[1].push_back(pmf21);
+		
+		// Loop 2, Face 2
+		cB.clear(); cF.clear();
+		cB.append(3); cB.append(9);
+		cF.append(5); cF.append(7);
+		PolyMeshFace pmf22(cB, cF);
+		MPolyMeshFaceLoops[1].push_back(pmf22);
 		
 		//--------------------------------------------------------------------------------------------------------------//
 		// Get output handle for mesh creation																			//
@@ -215,15 +239,12 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 				currentFace.getWaleEdge1(vertices);
 				inputMeshFn.getPoint(vertices[0], w0);
 				inputMeshFn.getPoint(vertices[1], w1);
-				cout << "w0 = (" << w0[0] << ", " << w0[1] << ", " << w0[2] << ")" << endl;
-				cout << "w1 = (" << w1[0] << ", " << w1[1] << ", " << w1[2] << ")" << endl;
-				cout << "length of (w0, w1) = " << (w1-w0).length() << "\n" << endl;
 				totalLength += (w1 - w0).length();
 
 				// get second wale edge only for final face
 				// (assuming potential for unclosed loops)
 				if (i == currentLoop.size()-1) {
-					currentFace.getWaleEdge1(vertices);
+					currentFace.getWaleEdge2(vertices);
 					inputMeshFn.getPoint(vertices[0], w0);
 					inputMeshFn.getPoint(vertices[1], w1);
 					totalLength += (w1 - w0).length();
@@ -233,30 +254,31 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 			// divide total sum by number of edges
 			double avgLength = totalLength / (currentLoop.size() + 1);
 			int numWaleDivisions = floor(avgLength / (stitchSizeData));
-			cout << "totalLength = " << totalLength << endl;
-			cout << "averageLength = " << avgLength << endl;
-			cout << "stitchSizeData = " << stitchSizeData << endl;
-			cout << "numDivisions = " << numWaleDivisions << "/n" << endl;
-			cout << "--------------------------------------" << endl;
 
 			//----------------------------------------------------------------------------------------------------------//
-			// Create tessellated polygon subfaces																		//
+			// Loop through each face of the current loop to create tessellated polygon subfaces						//
 			//----------------------------------------------------------------------------------------------------------//
 
-			// loop through each face in loop to tessellate
-			for (int i = 0; i < currentLoop.size(); i++)
+			for (int f = 0; f < currentLoop.size(); f++)
 			{
+				//------------------------------------------------------------------------------------------------------//
+				// Get current PolyMeshFace																				//
+				//------------------------------------------------------------------------------------------------------//
+
+				PolyMeshFace currentFace = currentLoop[f];
+
+				//------------------------------------------------------------------------------------------------------//
+				// Determine edge direction data for current face (HACK FOR QUAD FACES)									//
+				//------------------------------------------------------------------------------------------------------//
+
 				MPoint v0, v1;
 				int2 waleVtxs;
 				MIntArray courseVtxs;
-				PolyMeshFace currentFace = currentLoop[i];
 				
-				// HACK FOR QUAD FACE
 				// get backwards-first corner as origin
 				MPoint origin;
 				inputMeshFn.getPoint(currentFace.courseEdgeBkwd[0], origin);
 
-				// HACK FOR QUAD FACE
 				// vector corresponding to first wale edge
 				MFloatVector wale1Dir;
 				currentFace.getWaleEdge1(waleVtxs); 
@@ -264,7 +286,6 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 				inputMeshFn.getPoint(waleVtxs[1], v1);
 				wale1Dir = v1-v0;
 
-				// HACK FOR QUAD FACE
 				// vector corresponding to second wale edge
 				MFloatVector wale2Dir;
 				currentFace.getWaleEdge2(waleVtxs); 
@@ -272,7 +293,6 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 				inputMeshFn.getPoint(waleVtxs[1], v1);
 				wale2Dir = v1-v0;
 
-				// HACK FOR QUAD FACE
 				// vector corresponding to backwards course edge
 				MFloatVector course1Dir;
 				currentFace.getCourseEdgeBkwd(courseVtxs);
@@ -280,56 +300,115 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 				inputMeshFn.getPoint(courseVtxs[1], v1);
 				course1Dir = v1-v0;
 				
-				// HACK FOR QUAD FACE
-				// vector corresponding to backwards course edge
+				// vector corresponding to forwards course edge
 				MFloatVector course2Dir;
-				currentFace.getCourseEdgeBkwd(courseVtxs);
+				currentFace.getCourseEdgeFwrd(courseVtxs);
 				inputMeshFn.getPoint(courseVtxs[0], v0);
 				inputMeshFn.getPoint(courseVtxs[1], v1);
 				course2Dir = v1-v0;
 
-				MPointArray vertexLoop;
-				for (int j = 0; j < numWaleDivisions; j++) {
-					for (int k = 0; k < numWaleDivisions; k++) {
+				//------------------------------------------------------------------------------------------------------//
+				// Determine number of course edge subdivisions for the current face									//
+				//------------------------------------------------------------------------------------------------------//
+
+				double courseEdgeBkwdLength = course1Dir.length();
+				double courseEdgeFwrdLength = course2Dir.length();
+				int numCourseDivisionsBkwd = floor(courseEdgeBkwdLength / (stitchSizeData));
+				int numCourseDivisionsFwrd = floor(courseEdgeFwrdLength / (stitchSizeData));
+				cout << "num bkwd div = " << numCourseDivisionsBkwd << endl;
+				cout << "num fwrd div = " << numCourseDivisionsFwrd << endl;
+
+				//------------------------------------------------------------------------------------------------------//
+				// Create vector of MPointArrays to store interpolated stitch row points								//
+				// (including along course edges, so there are numWaleDivisions+1 stitch rows)							//
+				//------------------------------------------------------------------------------------------------------//
+
+				// allocate stitch row point arrays
+				vector<MPointArray> stitchRowPts;
+				for (int i = 0; i < stitchRowPts.size(); i++) { stitchRowPts[i].clear(); }
+				stitchRowPts.resize(numWaleDivisions + 1);
+				
+				// populate stitch row point arrays
+				for (int u = 0; u <= numWaleDivisions; u++) 
+				{
+					// u-direction percentage
+					double uPct = (double) u / numWaleDivisions;
+
+					// determine number of points to add for current stitch row r
+					int numRowPts = LerpInt(numCourseDivisionsBkwd, numCourseDivisionsFwrd, uPct);
+
+					// for each point in row
+					for (int v = 0; v <= numRowPts; v++) 
+					{
+						// v direction percentage
+						double vPct = (double) v / numRowPts;
+
+						// determine point location
+						MPoint pt = origin + wale1Dir*uPct + LerpVec(course1Dir*vPct, course2Dir*vPct, uPct);
 						
-						// clear current face loop
+						// add point to row-specific MPointArray
+						stitchRowPts[u].append(pt);
+					}
+				}
+
+				//------------------------------------------------------------------------------------------------------//
+				// Add interior faces to polygon based on stored stitch row points										//
+				//------------------------------------------------------------------------------------------------------//
+
+				MPointArray vertexLoop;
+
+				for (int u = 0; u < numWaleDivisions; u++) 
+				{
+					//--------------------------------------------------------------------------------------------------//
+					// Add regular quad face stitches																	//
+					//--------------------------------------------------------------------------------------------------//
+
+					// find smaller number of points between two consecutive stitch rows
+					int numPts1 = stitchRowPts[ u ].length();
+					int numPts2 = stitchRowPts[u+1].length();
+					int minRowPts = min(numPts1, numPts2);
+
+					// use this number to add quad stitch faces
+					for (int v = 0; v < minRowPts-1; v++)
+					{
+						// clear current subface vertex loop
 						vertexLoop.clear();
 
 						// get points in counterclockwise order
-						MPoint p0 = origin
-							+ (wale1Dir * j / numWaleDivisions) * (1.0 - (double)k/numWaleDivisions)
-							+ (wale2Dir * j / numWaleDivisions) * ((double)k/numWaleDivisions) 
-							+ (course1Dir * k / numWaleDivisions) * (1.0 - (double)j/numWaleDivisions)
-							+ (course2Dir * k / numWaleDivisions) * ((double)j/numWaleDivisions);
-						MPoint p1 = origin 
-							+ (wale1Dir * (j+1) / numWaleDivisions) * (1.0 - (double)k/numWaleDivisions)
-							+ (wale2Dir * (j+1) / numWaleDivisions) * ((double)k/numWaleDivisions)
-							+ (course1Dir *   k   / numWaleDivisions) * (1.0 - (double)(j+1)/numWaleDivisions)
-							+ (course2Dir *   k   / numWaleDivisions) * ((double)(j+1)/numWaleDivisions);
-						MPoint p2 = origin 
-							+ (wale1Dir * (j+1) / numWaleDivisions) * (1.0 - (double)(k+1)/numWaleDivisions)
-							+ (wale2Dir * (j+1) / numWaleDivisions) * ((double)(k+1)/numWaleDivisions)
-							+ (course1Dir * (k+1) / numWaleDivisions) * (1.0 - (double)(j+1)/numWaleDivisions)
-							+ (course2Dir * (k+1) / numWaleDivisions) * ((double)(j+1)/numWaleDivisions);
-						MPoint p3 = origin 
-							+ (wale1Dir *   j   / numWaleDivisions) * (1.0 - (double)(k+1)/numWaleDivisions)
-							+ (wale2Dir *   j   / numWaleDivisions) * ((double)(k+1)/numWaleDivisions)
-							+ (course1Dir * (k+1) / numWaleDivisions) * (1.0 - (double)j/numWaleDivisions)
-							+ (course2Dir * (k+1) / numWaleDivisions) * ((double)j/numWaleDivisions);
-
-						// append to list
-						vertexLoop.append(p0);
-						vertexLoop.append(p1);
-						vertexLoop.append(p2);
-						vertexLoop.append(p3);
-
+						vertexLoop.append(stitchRowPts[ u ][ v ]);
+						vertexLoop.append(stitchRowPts[ u ][v+1]);
+						vertexLoop.append(stitchRowPts[u+1][v+1]);
+						vertexLoop.append(stitchRowPts[u+1][ v ]);
+						
 						// add polygon to mesh
 						outputMeshFn.addPolygon(vertexLoop);
+					}
 
-					} // j face direction loop
-				} // k face direction loop 
-			} // per face loop
-		} // per face-loop loop
+					//--------------------------------------------------------------------------------------------------//
+					// If the number of points in each row was not equal, add any										//
+					// remaining points as an increase / decrease face at the end of the stitch row						//
+					//--------------------------------------------------------------------------------------------------//
+
+					// first row has more points
+					if (numPts2 <  numPts1) {
+						vertexLoop.clear();
+						for (int v = numPts2-1; v < numPts1; v++)
+							vertexLoop.append(stitchRowPts[u][v]);
+						vertexLoop.append(stitchRowPts[u+1][numPts2-1]);
+						outputMeshFn.addPolygon(vertexLoop);
+					}
+
+					// lower row has more points
+					else if (numPts1 < numPts2) {
+						vertexLoop.clear();
+						for (int v = numPts1-1; v < numPts2; v++)
+							vertexLoop.append(stitchRowPts[u+1][v]);
+						vertexLoop.append(stitchRowPts[u][numPts1-1]);
+						outputMeshFn.addPolygon(vertexLoop);
+					}
+				} 
+			} // per PolyMeshFace loop
+		} // per PolyMeshFaceLoop loop
 
 		outputMeshFn.updateSurface();
 		outputHandle.set(newOutputData);

@@ -31,14 +31,14 @@ class PolyMeshFace : public MObject
 {
 public:
 				PolyMeshFace();
-				PolyMeshFace(MIntArray& cBkwd, MIntArray& cFwd);
+				PolyMeshFace(MIntArray& cBkwd, MIntArray& cFwrd);
 	virtual	   ~PolyMeshFace();
 
 	MIntArray	courseEdgeBkwd;
-	MIntArray	courseEdgeFwd;
+	MIntArray	courseEdgeFwrd;
 
 	MStatus		getWaleEdge1(int2& waleEdge1);
 	MStatus		getWaleEdge2(int2& waleEdge2);
 	MStatus		getCourseEdgeBkwd(MIntArray& bkwdEdge);
-	MStatus		getCourseEdgeFwd(MIntArray& fwdEdge);
+	MStatus		getCourseEdgeFwrd(MIntArray& FwrdEdge);
 };
