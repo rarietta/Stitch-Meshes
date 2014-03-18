@@ -20,6 +20,10 @@
 #include <maya/MPlug.h>
 #include <maya/MDataBlock.h>
 #include <maya/MFnMeshData.h>
+#include <maya/MItMeshPolygon.h>
+#include <maya/MItMeshEdge.h>
+#include <maya/MFnMesh.h>
+#include <maya/MPointArray.h>
 
 #include <maya/MIOStream.h>
 #include "PolyMeshFace.h"
@@ -57,7 +61,17 @@ public:
 	static MObject	stitchSize;
 	static MObject	outputMesh;
 	static MTypeId	id;
+	int numLoopFaces;
 
 protected:
-	//MObject createMesh(MObject& outData, MStatus& stat);
+
+	// callback function for edge loop selection
+	void edgeSelectCB(MFnMesh &inputMeshFn, MItMeshEdge &inputMeshEdgeIt);
+
+	// function for selecting/defining stitch face loops
+	MStatus defineStitchLoops(MFnMesh &inputMeshFn, MItMeshEdge &inputMeshEdgeIt);
+
+	// function for performing tessellation
+	MStatus tessellateInputMesh(int numPolyMeshFaceLoops, float stitchSizeData,
+								MFnMesh &inputMeshFn, MFnMesh &outputMeshFn);
 };
