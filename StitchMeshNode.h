@@ -24,10 +24,14 @@
 #include <maya/MItMeshEdge.h>
 #include <maya/MFnMesh.h>
 #include <maya/MPointArray.h>
+#include <maya/MEventMessage.h>
+#include <maya/MSceneMessage.h>
 
 #include <maya/MIOStream.h>
 #include "PolyMeshFace.h"
 #include <vector>
+#include <stdio.h>
+#include <string.h>
 
 using namespace std;
 
@@ -51,6 +55,9 @@ public:
 	// Class variables for stitch direction and tesselation					//
 	//----------------------------------------------------------------------//
 
+	MFnMesh* inputMeshFn;
+	MItMeshEdge *inputMeshItEdges;
+	MItMeshPolygon *inputMeshItFaces;
 	vector<PolyMeshFaceLoop> MPolyMeshFaceLoops;
 
 	//----------------------------------------------------------------------//
@@ -61,17 +68,25 @@ public:
 	static MObject	stitchSize;
 	static MObject	outputMesh;
 	static MTypeId	id;
+
+	//----------------------------------------------------------------------//
+	// Stitch mesh node variables											//
+	//----------------------------------------------------------------------//
+	
 	int numLoopFaces;
+	MIntArray faceLoopIndex;		// index of each face in its face loop
+	MIntArray faceLoopNumber;		// index of loop that each face is in
 
 protected:
 
-	// callback function for edge loop selection
-	void edgeSelectCB(MFnMesh &inputMeshFn, MItMeshEdge &inputMeshEdgeIt);
+	// get the currently selected edge
+	//int getSelectedEdge(MItMeshEdge &edgeIt);
+	static int getSelectedEdgeIndex(void);
 
 	// function for selecting/defining stitch face loops
-	MStatus defineStitchLoops(MFnMesh &inputMeshFn, MItMeshEdge &inputMeshEdgeIt);
+	MStatus defineStitchLoops(void);
 
 	// function for performing tessellation
-	MStatus tessellateInputMesh(int numPolyMeshFaceLoops, float stitchSizeData,
-								MFnMesh &inputMeshFn, MFnMesh &outputMeshFn);
+	MStatus tessellateInputMesh(float stitchSizeData, MFnMesh &inputMeshFn, 
+								MFnMesh &outputMeshFn);
 };

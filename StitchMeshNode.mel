@@ -11,14 +11,14 @@ string $inputMesh = $shapes[0];
 // Create transform/mesh/shader for output connections					//
 //----------------------------------------------------------------------//
 
-createNode transform -n StitchMeshTransform;
-createNode mesh -n StitchMeshShape1 -p StitchMeshTransform;
-sets -add initialShadingGroup StitchMeshShape1;
+string $nodeTransform = `createNode -n StitchMeshTransform transform`;					// -n StitchMeshTransform;
+string $nodeShape = `createNode mesh -n StitchMeshShape -p $nodeTransform`;		// -n StitchMeshShape1 -p StitchMeshShape;
+sets -add initialShadingGroup $nodeShape;
 
 //----------------------------------------------------------------------//
 // Create stitch meshes node and connect input mesh and output mesh		//
 //----------------------------------------------------------------------//
 
-createNode StitchMeshNode -n StitchMeshNode1;
-connectAttr ($inputMesh + ".outMesh") StitchMeshNode1.inputMesh;
-connectAttr StitchMeshNode1.outputMesh StitchMeshShape1.inMesh;
+$node = `createNode StitchMeshNode -n StitchMeshNode`;
+connectAttr ($inputMesh + ".outMesh") ($node + ".inputMesh");
+connectAttr ($node + ".outputMesh") ($nodeShape + ".inMesh");

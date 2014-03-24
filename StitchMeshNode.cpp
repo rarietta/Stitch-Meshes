@@ -32,23 +32,28 @@ using namespace std;
 #define LerpVec(v1,v2,pct)				\
 	v1 + pct*(v2-v1)
 
+#define incrementWithWrap(index, size)	\
+	(index + 1 < size) ? (index + 1) : 0
+
 MStatus returnStatus;
 MObject StitchMeshNode::inputMesh;
 MObject StitchMeshNode::stitchSize;
 MObject StitchMeshNode::outputMesh;
 MTypeId StitchMeshNode::id( 0x00004 );
-
+MCallbackId callbackId = -1;
 
 //==============================================================================================================//
 // Tessellate the Input Mesh																					//
 //==============================================================================================================//
-MStatus StitchMeshNode::tessellateInputMesh(int numPolyMeshFaceLoops, float stitchSizeData,
+
+MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData,
 											MFnMesh &inputMeshFn, MFnMesh &outputMeshFn)
 {
 	//--------------------------------------------------------------------------------------------------------------//
 	// Iterate through all poly face edge loops to tesselate														//
 	//--------------------------------------------------------------------------------------------------------------//
 
+	int numPolyMeshFaceLoops = (int) MPolyMeshFaceLoops.size();
 	for (int n = 0; n < numPolyMeshFaceLoops; n++)
 	{
 		//----------------------------------------------------------------------------------------------------------//
@@ -86,7 +91,7 @@ MStatus StitchMeshNode::tessellateInputMesh(int numPolyMeshFaceLoops, float stit
 
 		// divide total sum by number of edges
 		double avgLength = totalLength / (currentLoop.size() + 1);
-		int numWaleDivisions = floor(avgLength / (stitchSizeData));
+		int numWaleDivisions = ceil(avgLength / (stitchSizeData));
 
 		//----------------------------------------------------------------------------------------------------------//
 		// Loop through each face of the current loop to create tessellated polygon subfaces						//
@@ -146,10 +151,8 @@ MStatus StitchMeshNode::tessellateInputMesh(int numPolyMeshFaceLoops, float stit
 
 			double courseEdgeBkwdLength = course1Dir.length();
 			double courseEdgeFwrdLength = course2Dir.length();
-			int numCourseDivisionsBkwd = floor(courseEdgeBkwdLength / (stitchSizeData));
-			int numCourseDivisionsFwrd = floor(courseEdgeFwrdLength / (stitchSizeData));
-			cout << "num bkwd div = " << numCourseDivisionsBkwd << endl;
-			cout << "num fwrd div = " << numCourseDivisionsFwrd << endl;
+			int numCourseDivisionsBkwd = ceil(courseEdgeBkwdLength / (stitchSizeData));
+			int numCourseDivisionsFwrd = ceil(courseEdgeFwrdLength / (stitchSizeData));
 
 			//------------------------------------------------------------------------------------------------------//
 			// Create vector of MPointArrays to store interpolated stitch row points								//
@@ -228,7 +231,7 @@ MStatus StitchMeshNode::tessellateInputMesh(int numPolyMeshFaceLoops, float stit
 					for (int v = numPts2-1; v < numPts1; v++)
 						vertexLoop.append(stitchRowPts[u][v]);
 					vertexLoop.append(stitchRowPts[u+1][numPts2-1]);
-					outputMeshFn.addPolygon(vertexLoop);
+					outputMeshFn.addPolygon(vertexLoop, outputMeshFn.numPolygons());
 				}
 
 				// lower row has more points
@@ -246,18 +249,24 @@ MStatus StitchMeshNode::tessellateInputMesh(int numPolyMeshFaceLoops, float stit
 	return MStatus::kSuccess;
 }
 
-
 //==============================================================================================================//
 // Create the Node		                                                                                        //
 //==============================================================================================================//
+
 void* StitchMeshNode::creator()
 {
-	return new StitchMeshNode;
+	StitchMeshNode *node = new StitchMeshNode();
+	node->numLoopFaces = 0;
+	node->inputMeshFn = NULL;
+	node->inputMeshItEdges = NULL;
+	node->inputMeshItFaces = NULL;
+	return node;
 }
 
 //==============================================================================================================//
 // Initialize the Node                                                                                          //
 //==============================================================================================================//
+
 MStatus StitchMeshNode::initialize()
 {
 	//----------------------------------------------------------------------------------------------------------//
@@ -325,98 +334,338 @@ MStatus StitchMeshNode::initialize()
 	return MStatus::kSuccess;
 }
 
-/*
-MStatus StitchMeshNode::GetSelectedMesh(MObjectArray& objects) {
- +	 
- +	 // get the current selection list from maya
- +	 MSelectionList selected;
- +	 MGlobal::getActiveSelectionList(selected);
- +	 MItSelectionList itSelected(selected);
- +	 MObject obj;	
- +
- +	 cout << "number of selected items = " << selected.length() << endl;
- +
- +	 // iterate through all selected items
- +	 while (!itSelected.isDone()) {
- +
- +		MDagPath dagPath;
- +		MObject	 component;
- +
- +		itSelected.getDependNode(obj);
- +
- +		// if the selected object is of the type we are looking for
- +		if (obj.hasFn(MFn::kMesh)) { objects.append(obj); }
- +		
- +		// if the selected object is a transform, check it's kids
- +		else if (obj.hasFn(MFn::kTransform)) {
- +		
- +			MFnTransform fn(obj);
- +			
- +			// loop through each child of the transform
- +			for (int j = 0; j < fn.childCount(); j++)
- +			{
- +				// retrieve the j'th child of the transform node
- +				MObject child = fn.child(j);
- +			
- +				// if the child is MFn::kMesh append it to the list
- +				if (child.hasFn(MFn::kMesh)) { objects.append(child); }
- +			}
- +		}
- +
- +		itSelected.next();
- +	}
- +	cout << objects.length() << endl;
- +	return MStatus::kSuccess;
- + }*/
+//======================================================================================================================//
+// Function for finding the currently selected edge. If a valid edge is selected, this will return the index of			//
+// that edge. If no valid edge is selected, this will return -1.														//
+//======================================================================================================================//
+
+int getSelectedEdgeIndex(void)
+{ 	 
+	// get the current selection list from maya
+	MSelectionList selected;
+	MGlobal::getActiveSelectionList(selected);
+	if (selected.length() == 0)
+		return -1;
+	
+	// get the dagPath to the current selection
+	MDagPath dagPath;
+	selected.getDagPath(0,dagPath);
+
+	// if the selection is a mesh geometry component
+	if (dagPath.apiType() == 296) {
+
+		// get the name of the selection
+		MStringArray selectedEdges;
+		selected.getSelectionStrings(selectedEdges);
+		char *selectedName = (char *)selectedEdges[0].asChar();
+		cout << selectedName << endl;
+
+		// split the name of the selection to
+		// get the edge index
+		char* pch;
+		pch = strtok(selectedName, ".[]");
+		vector<char*> selectedNameTokens;
+		while (pch != NULL) {
+			selectedNameTokens.push_back(pch);
+			pch = strtok(NULL, ".[]");
+		}
+
+		// return the edge index
+		if (selectedNameTokens.size() > 2 && strcmp(selectedNameTokens[1], "e") == 0)
+			return atoi(selectedNameTokens[2]);
+	}
+ 	return -1;
+}
 
 //======================================================================================================================//
 // Callback function for selecting edges																				//
 //======================================================================================================================//
 
-void StitchMeshNode::edgeSelectCB(MFnMesh &inputMeshFn, MItMeshEdge &inputMeshEdgeIt)
+//void StitchMeshNode::edgeSelectCB(MFnMesh &inputMeshFn, MItMeshEdge &inputMeshEdgeIt)
+void edgeSelectCB(void * data)
 {
-	MIntArray connectedEdges;
-	MIntArray connectedFaces;
-	connectedEdges.clear();
-	connectedFaces.clear();
+	MEventMessage::removeCallback(callbackId);
 
-	// MStatus edgeSelected = getSelectedEdge();
-	// if (edgeSelected && numLoopFaces == 0)
-		// this is first loop
-		// check if boundary edge
-		// if not, return
-		// process boundary loops
-		// add new face loop
-		// store new forward edge
-	// if (edgeSelected && numLoopFaces != 0)
-		// this is not first loop
-		// check if edge in standing forward edge
-		// if not, return
-		// process interior loops
-		// add new face loop
-		// store new forward edge
+	//------------------------------------------------------------------------------------------------------------------//
+	// Get index of currently selected edge (returns -1 if selection is not an edge)									//
+	//------------------------------------------------------------------------------------------------------------------//
+	
+	int selectedEdgeIndex = getSelectedEdgeIndex();
+	if (selectedEdgeIndex < 0) { return; }
+		
+	//------------------------------------------------------------------------------------------------------------------//
+	// Local variables necessary for computation																		//
+	//------------------------------------------------------------------------------------------------------------------//
+
+	// input stitch mesh node from client data pointer
+	StitchMeshNode *stitchnode = (StitchMeshNode*) data;
+	MFnMesh *inputMeshFn = stitchnode->inputMeshFn;
+	MItMeshEdge *inputMeshEdgeIt = stitchnode->inputMeshItEdges;
+
+	int p;								// used in setting index of iterator
+	int2 courseBkwdVtxs;				// array for storing indices of PolyMeshFace's bkwd course vertices
+	int2 courseFwrdVtxs;				// array for storing indices of PolyMeshFace's fwrd course vertices
+	bool inverted = false;				// does the current edge need to be flipped to match direction?
+	MIntArray connectedEdges;			// array for storing indices of edge's adjacent edges
+	MIntArray connectedFaces;			// array for storing indices of edge's adjacent faces
+	PolyMeshFaceLoop faceLoop;			// declare new faceLoop
+	int nextCourseEdgeIndex = -1;		// store next course edge index
+
+	//------------------------------------------------------------------------------------------------------------------//
+	// Get selected edge from iterator and assert it is part of a new face loop (i.e. not bounded by preexisting loops)	//
+	//------------------------------------------------------------------------------------------------------------------//
+	
+	int numBoundingRows = 0;
+	int adjFaceLoop = -1;
+	int adjFaceIndex = -1;
+	inputMeshEdgeIt->setIndex(selectedEdgeIndex, p);
+	inputMeshEdgeIt->getConnectedFaces(connectedFaces);
+	int numConnectedFaces = connectedFaces.length();
+	for (int i = 0; i < numConnectedFaces; i++) {
+		int loop = stitchnode->faceLoopNumber[connectedFaces[i]];
+		if (loop >= 0) {
+			adjFaceLoop = loop;
+			adjFaceIndex = stitchnode->faceLoopIndex[connectedFaces[i]];
+			numBoundingRows++;
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------------------------//
+	// CASE 1: This edge is already bounded by face loops and there is no need to create a new one, or it is an			//
+	//		   interior edge with no adjacent loops																		//
+	//------------------------------------------------------------------------------------------------------------------//
+	
+	if ((numBoundingRows == 2) || (numBoundingRows == 1 && inputMeshEdgeIt->onBoundary())
+		|| (numBoundingRows == 0 && !inputMeshEdgeIt->onBoundary()))
+	{
+		cout << "CASE 1: numBoundingRows = " << numBoundingRows << endl;
+	
+		// return from callback function
+		if (stitchnode->numLoopFaces < inputMeshFn->numPolygons()) {
+			cout << "re-adding callback" << endl;
+			callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, stitchnode);
+		}
+		return;
+	}
+
+	//------------------------------------------------------------------------------------------------------------------//
+	// CASE 2: This edge is part of a boundary edge loop that is not yet associated with a face loop					//
+	//------------------------------------------------------------------------------------------------------------------//
+	
+	else if (numBoundingRows == 0 && inputMeshEdgeIt->onBoundary())
+	{
+		cout << "CASE 2" << endl;
+
+		do {
+			// get vertex endpoints of selected edge
+			inputMeshFn->getEdgeVertices(inputMeshEdgeIt->index(), courseBkwdVtxs);
+			if (inverted) { 
+				int temp = courseBkwdVtxs[0];
+				courseBkwdVtxs[0] = courseBkwdVtxs[1];
+				courseBkwdVtxs[1] = temp;
+			}
+
+			// get connected edges and faces for current edge
+			connectedEdges.clear();
+			connectedFaces.clear();
+			int numConnectedEdges = inputMeshEdgeIt->getConnectedEdges(connectedEdges);
+			int numConnectedFaces = inputMeshEdgeIt->getConnectedFaces(connectedFaces);
+			int faceIndex = connectedFaces[0];
+			
+			// go through connected edges
+			for (int i = 0; i < connectedEdges.length(); i++)
+			{
+				inputMeshEdgeIt->setIndex(connectedEdges[i], p);
+
+				// if the connected edge is on the boundary, then
+				// it could be the next course edge in the loop
+				if (inputMeshEdgeIt->onBoundary())
+				{
+					int2 courseVertices;
+					inputMeshFn->getEdgeVertices(inputMeshEdgeIt->index(), courseVertices);
+					
+					// connected to edge in correct direction
+					if (courseVertices[0] != courseBkwdVtxs[0] && courseVertices[1] != courseBkwdVtxs[0]) {
+						nextCourseEdgeIndex = connectedEdges[i];
+						if (courseVertices[0] == courseBkwdVtxs[1]) { inverted = false; }
+						if (courseVertices[1] == courseBkwdVtxs[1]) { inverted = true;  }
+					}
+				}
+
+				// if it is not on the boundary of the mesh, it
+				// cannot be a course edge and must be a wale edge
+				else
+				{
+					int2 waleVertices; 
+					inputMeshFn->getEdgeVertices(inputMeshEdgeIt->index(), waleVertices);
+
+					// connected to left, direction is forward
+					if (waleVertices[0] == courseBkwdVtxs[0])	   { courseFwrdVtxs[0] = waleVertices[1]; } 
+
+					// connected to left, direction is inverted
+					else if (waleVertices[1] == courseBkwdVtxs[0]) { courseFwrdVtxs[0] = waleVertices[0]; }
+
+					// connected to right, direction is forward
+					else if (waleVertices[0] == courseBkwdVtxs[1]) { courseFwrdVtxs[1] = waleVertices[1]; }
+
+					// connected to right, direction is inverted
+					else if (waleVertices[1] == courseBkwdVtxs[1]) { courseFwrdVtxs[1] = waleVertices[0]; }
+				}
+
+			}
+
+			// Make a face with connectedVertices and faceTopVertices
+			MIntArray courseBwkd, courseFwrd;
+			courseBwkd.append(courseBkwdVtxs[0]); courseBwkd.append(courseBkwdVtxs[1]);
+			courseFwrd.append(courseFwrdVtxs[0]); courseFwrd.append(courseFwrdVtxs[1]);
+			PolyMeshFace face = PolyMeshFace(courseBwkd, courseFwrd, faceIndex);
+			stitchnode->faceLoopIndex[faceIndex] = (int) faceLoop.size();
+			stitchnode->faceLoopNumber[faceIndex] = (int) stitchnode->MPolyMeshFaceLoops.size();
+			faceLoop.push_back(face);
+			
+			// continue to the next course edge for the loop
+			inputMeshEdgeIt->setIndex(nextCourseEdgeIndex, p);
+		
+		} while (inputMeshEdgeIt->index() != selectedEdgeIndex);
+	}
+		
+	//------------------------------------------------------------------------------------------------------------------//
+	// CASE 3: This edge is part of an interior edge loop and is bounded by existing face loops on only one side		//
+	//------------------------------------------------------------------------------------------------------------------//
+	
+	else if (numBoundingRows == 1 && !inputMeshEdgeIt->onBoundary())
+	{
+		cout << "CASE 3" << endl;
+		
+		do {
+			// get course vertex endpoint indices in same direction as
+			// adjacent face's forward edge
+			stitchnode->MPolyMeshFaceLoops[adjFaceLoop][adjFaceIndex].getCourseEdgeFwrd(courseBkwdVtxs);
+			int nextAdjFaceIndex = incrementWithWrap(adjFaceIndex, stitchnode->MPolyMeshFaceLoops[adjFaceLoop].size());
+
+			// get connected edges and faces for current edge
+			connectedEdges.clear();
+			connectedFaces.clear();
+			int numConnectedEdges = inputMeshEdgeIt->getConnectedEdges(connectedEdges);
+			int numConnectedFaces = inputMeshEdgeIt->getConnectedFaces(connectedFaces);
+			int currentLoop = stitchnode->MPolyMeshFaceLoops.size();
+			int faceIndex;
+			for (int i = 0; i < numConnectedFaces; i++) {
+				if (stitchnode->faceLoopNumber[connectedFaces[i]] != adjFaceLoop) { faceIndex = connectedFaces[i]; }
+			}
+
+			// go through connected edges
+			for (int i = 0; i < connectedEdges.length(); i++)
+			{
+				inputMeshEdgeIt->setIndex(connectedEdges[i], p);
+				inputMeshEdgeIt->getConnectedFaces(connectedFaces);
+				int faceId0 = connectedFaces[0];
+				int faceId1 = connectedFaces[1];
+
+				// if the connected edge has one adjacent face equal to the next adjacent face in the bkwd loop
+				// and one face not currently in a loop, then it is the next bkwd course edge
+				if ((faceId0 == stitchnode->MPolyMeshFaceLoops[adjFaceLoop][nextAdjFaceIndex].faceIndex && faceId1 == -1) ||
+					(faceId1 == stitchnode->MPolyMeshFaceLoops[adjFaceLoop][nextAdjFaceIndex].faceIndex && faceId0 == -1))
+				{
+						nextCourseEdgeIndex = connectedEdges[i];
+				}
+
+				// if it is not the next backward course edge, then it must have two adjacent faces not in a loop 
+				// or one (or two, in the case of the last face) adjacent face(s) in the current loop to be one of the wale edges
+				else if ((stitchnode->faceLoopNumber[faceId0] == -1			 && stitchnode->faceLoopNumber[faceId1] == -1		  ) ||
+						 (stitchnode->faceLoopNumber[faceId0] == -1			 && stitchnode->faceLoopNumber[faceId1] == currentLoop) ||
+						 (stitchnode->faceLoopNumber[faceId0] == currentLoop && stitchnode->faceLoopNumber[faceId1] == -1		  ) ||
+						 (stitchnode->faceLoopNumber[faceId0] == currentLoop && stitchnode->faceLoopNumber[faceId1] == currentLoop) )
+				{
+					int2 waleVertices; 
+					inputMeshFn->getEdgeVertices(inputMeshEdgeIt->index(), waleVertices);
+
+					// connected to left, direction is forward
+					if (waleVertices[0] == courseBkwdVtxs[0])	   { courseFwrdVtxs[0] = waleVertices[1]; } 
+
+					// connected to left, direction is inverted
+					else if (waleVertices[1] == courseBkwdVtxs[0]) { courseFwrdVtxs[0] = waleVertices[0]; }
+
+					// connected to right, direction is forward
+					else if (waleVertices[0] == courseBkwdVtxs[1]) { courseFwrdVtxs[1] = waleVertices[1]; }
+
+					// connected to right, direction is inverted
+					else if (waleVertices[1] == courseBkwdVtxs[1]) { courseFwrdVtxs[1] = waleVertices[0]; }
+				}
+			}
+
+			// Make a face with connectedVertices and faceTopVertices
+			MIntArray courseBwkd, courseFwrd;
+			courseBwkd.append(courseBkwdVtxs[0]); courseBwkd.append(courseBkwdVtxs[1]);
+			courseFwrd.append(courseFwrdVtxs[0]); courseFwrd.append(courseFwrdVtxs[1]);
+			PolyMeshFace face = PolyMeshFace(courseBwkd, courseFwrd, faceIndex);
+			stitchnode->faceLoopIndex[faceIndex] = (int) faceLoop.size();
+			stitchnode->faceLoopNumber[faceIndex] = (int) stitchnode->MPolyMeshFaceLoops.size();
+			faceLoop.push_back(face);
+			
+			// continue to the next course edge for the loop
+			inputMeshEdgeIt->setIndex(nextCourseEdgeIndex, p);
+			adjFaceIndex = nextAdjFaceIndex;
+		
+		} while (inputMeshEdgeIt->index() != selectedEdgeIndex);
+	}
+	
+	// push new face loop onto node's vector and update
+	// the number of faces already accounted for by loops
+	stitchnode->MPolyMeshFaceLoops.push_back(faceLoop);
+	stitchnode->numLoopFaces += (int) faceLoop.size();
+	
+	//--------------------------------------------------------------------------------------------------------------//
+	// DEBUG: Create color set for face loop																		//
+	//--------------------------------------------------------------------------------------------------------------//
+
+	MColor loopColor(0.0, 1.0, 0.0);
+	MColorArray loopColorArray;
+	loopColorArray.append(loopColor);
+
+	cout << "inputMeshFn apiType = " << inputMeshFn->object().apiTypeStr() << endl;
+	MString* colorSetName = new MString("loopSelectionSet");
+	inputMeshFn->createColorSetWithName(*colorSetName, NULL, &returnStatus);
+	cout << returnStatus << endl;
+	inputMeshFn->setColors(loopColorArray, colorSetName, MFnMesh::kRGB);
+	
+	for (int i = 0; i < faceLoop.size(); i++) {
+		MIntArray faceVertList;
+		stitchnode->inputMeshFn->getPolygonVertices(faceLoop[i].faceIndex, faceVertList);
+		for (int v = 0; v < faceVertList.length(); v++)
+			inputMeshFn->assignColor(faceLoop[i].faceIndex, v, 0, colorSetName);
+		cout << inputMeshFn->setFaceColor(loopColor, faceLoop[i].faceIndex) << " ";
+	}
+	inputMeshFn->displayColors();
+	delete colorSetName;
+	
+	//------------------------------------------------------------------------------------------------------------------//
+	// Return from callback function																					//
+	//------------------------------------------------------------------------------------------------------------------//
+	
+	if (stitchnode->numLoopFaces < inputMeshFn->numPolygons()) {
+		cout << "re-adding callback" << endl;
+		callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, stitchnode);
+	}
+	return;
 }
 
 //--------------------------------------------------------------------------------------------------------------//
 // User interaction stage for selecting edge loops in direction of stitch
 //--------------------------------------------------------------------------------------------------------------//
 
-MStatus StitchMeshNode::defineStitchLoops(MFnMesh &inputMeshFn, MItMeshEdge &inputMeshEdgeIt) {
+MStatus StitchMeshNode::defineStitchLoops(void) {
 
-	// add callback function
-	
-	int numInputFaces = inputMeshFn.numPolygons();
-	while (numLoopFaces != numInputFaces) {;}
-
-	// remove callback function
-
+	// add callback function for edge selection
+	MGlobal::setSelectionMode(MGlobal::MSelectionMode::kSelectComponentMode);
+	callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, this);
 	return MStatus::kSuccess;
 }
-
 
 //======================================================================================================================//
 // Compute the new Node when the parameters are adjusted																//
 //======================================================================================================================//
+
 MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 {
 	//------------------------------------------------------------------------------------------------------------------//
@@ -433,56 +682,33 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		MDataHandle inputMeshDataHandle = data.inputValue(inputMesh, &returnStatus); 
 		McheckErr(returnStatus, "Error getting input mesh data handle\n");
 		MObject inputMeshData = inputMeshDataHandle.asMesh();
+		
+		// get dag path
 		MDagPath inputDagPath;
 		MDagPath::getAPathTo(inputMeshData, inputDagPath);		// path to input mesh object in DAG
-		MFnMesh inputMeshFn(inputMeshData);						// mesh function set for mesh object
-		MItMeshPolygon inputItFaces(inputDagPath);				// face iterator for mesh object
-		MItMeshEdge inputItEdges(inputDagPath);					// edge iterator for mesh object
+
+		// delete pointers to old input function sets
+		if (inputMeshFn != NULL) delete inputMeshFn;
+		if (inputMeshItEdges != NULL) delete inputMeshItEdges;
+		if (inputMeshItFaces != NULL) delete inputMeshItFaces;
+
+		// create new input function sets
+		inputMeshFn = new MFnMesh(inputMeshData);				// mesh function set for mesh object
+		inputMeshItEdges = new MItMeshEdge(inputMeshData);		// edge iterator for mesh object
+		inputMeshItFaces = new MItMeshPolygon(inputMeshData);	// face iterator for mesh object
+		for (int i = 0; i < inputMeshFn->numPolygons(); i++) {
+			faceLoopIndex.append(-1);
+			faceLoopNumber.append(-1);
+		}
+		cout << "inputMesh apiType = " << inputMesh.apiTypeStr() << endl;
+		cout << "inputMeshData apiType = " << inputMeshData.apiTypeStr() << endl;
+		//inputMeshFn->setObject(inputMeshData);
 		
 		// Get default stitch size
 		MDataHandle stitchSizeDataHandle = data.inputValue(stitchSize, &returnStatus); 
 		McheckErr(returnStatus, "Error getting stitch size data handle\n");
 		float stitchSizeData = stitchSizeDataHandle.asFloat();
 
-		//--------------------------------------------------------------------------------------------------------------//
-		// Get input data from edge loop/stitch direction specification by user											//
-		// HARD-CODED UNTIL THIS PART IS DONE																			//
-		//--------------------------------------------------------------------------------------------------------------//
-
-		int numPolyMeshFaceLoops = 2;
-		for (int i = 0; i < MPolyMeshFaceLoops.size(); i++)
-			MPolyMeshFaceLoops[i].clear();
-		MPolyMeshFaceLoops.resize(numPolyMeshFaceLoops);
-		MIntArray cB, cF; 
-		
-		// Loop 1, Face 1
-		cB.clear(); cF.clear();
-		cB.append(0); cB.append(1);
-		cF.append(2); cF.append(3);
-		PolyMeshFace pmf11(cB, cF);
-		MPolyMeshFaceLoops[0].push_back(pmf11);
-		
-		// Loop 1, Face 2
-		cB.clear(); cF.clear();
-		cB.append(1); cB.append(11);
-		cF.append(3); cF.append(9);
-		PolyMeshFace pmf12(cB, cF);
-		MPolyMeshFaceLoops[0].push_back(pmf12);
-		
-		// Loop 2, Face 1
-		cB.clear(); cF.clear();
-		cB.append(2); cB.append(3);
-		cF.append(4); cF.append(5);
-		PolyMeshFace pmf21(cB, cF);
-		MPolyMeshFaceLoops[1].push_back(pmf21);
-		
-		// Loop 2, Face 2
-		cB.clear(); cF.clear();
-		cB.append(3); cB.append(9);
-		cF.append(5); cF.append(7);
-		PolyMeshFace pmf22(cB, cF);
-		MPolyMeshFaceLoops[1].push_back(pmf22);
-		
 		//--------------------------------------------------------------------------------------------------------------//
 		// Get output handle for mesh creation																			//
 		//--------------------------------------------------------------------------------------------------------------//
@@ -499,25 +725,37 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		// put copy of input mesh in output object
 		MFnMesh outputMeshFn;
 		outputMeshFn.copy(inputMeshData, newOutputData);
+		outputMeshFn.setObject(newOutputData);
+		cout << "inputDagPath apiType = " << inputDagPath.apiType() << endl;
+		cout << "outputMesh apiType = " << outputMesh.apiTypeStr() << endl;
+		cout << "outputMeshData apiType = " << newOutputData.apiTypeStr() << endl;
 
 		//--------------------------------------------------------------------------------------------------------------//
 		// User interaction stage for selecting edge loops in direction of stitch
 		//--------------------------------------------------------------------------------------------------------------//
 
-		defineStitchLoops(inputMeshFn, inputItEdges);
+		defineStitchLoops();
 
 		//--------------------------------------------------------------------------------------------------------------//
 		// Call tessellation function																					//
 		//--------------------------------------------------------------------------------------------------------------//
 
-		tessellateInputMesh(numPolyMeshFaceLoops, stitchSizeData, inputMeshFn, outputMeshFn);
+		if (numLoopFaces > 0)
+		{
+			tessellateInputMesh(stitchSizeData, *inputMeshFn, outputMeshFn);
+			
+			// delete original input faces. only keep tesselated rows
+			for (int q = inputMeshFn->numPolygons()-1; q >= 0; q--)
+				outputMeshFn.deleteFace(q);
 		
-		//--------------------------------------------------------------------------------------------------------------//
-		// Update output mesh to return																					//
-		//--------------------------------------------------------------------------------------------------------------//
+			//----------------------------------------------------------------------------------------------------------//
+			// Update output mesh to return																				//
+			//----------------------------------------------------------------------------------------------------------//
 
-		outputMeshFn.updateSurface();
-		outputHandle.set(newOutputData);
+			outputMeshFn.updateSurface();
+			outputHandle.set(newOutputData);
+		}
+
 		data.setClean( plug );
 	} 
 	
