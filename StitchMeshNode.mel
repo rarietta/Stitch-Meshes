@@ -11,8 +11,8 @@ string $inputMesh = $shapes[0];
 // Create transform/mesh/shader for output connections					//
 //----------------------------------------------------------------------//
 
-string $nodeTransform = `createNode -n StitchMeshTransform transform`;					// -n StitchMeshTransform;
-string $nodeShape = `createNode mesh -n StitchMeshShape -p $nodeTransform`;		// -n StitchMeshShape1 -p StitchMeshShape;
+string $nodeTransform = `createNode -n StitchMeshTransform transform`;
+string $nodeShape = `createNode mesh -n StitchMeshShape -p $nodeTransform`;
 sets -add initialShadingGroup $nodeShape;
 
 //----------------------------------------------------------------------//

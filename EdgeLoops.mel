@@ -1,0 +1,117 @@
+//----------------------------------------------------------------------//
+// Tool Settings Window				                 					//
+//----------------------------------------------------------------------//
+
+if ( `window -exists MyWindow` ) {
+ deleteUI MyWindow;
+}
+window -t "Stitch Mesh"  MyWindow;
+
+//----------------------------------------------------------------------//
+// Top Bar - Description of Tool     									//
+//----------------------------------------------------------------------//
+ 
+columnLayout -adjustableColumn true;// -columnWidth 200;
+
+ frameLayout -label "Description";
+  columnLayout;
+   text -l "To alter any parameters, select either faces or edges and edit";
+   setParent ..;
+  setParent ..;
+
+//----------------------------------------------------------------------//
+// Select Stitch Type            										//
+//----------------------------------------------------------------------//
+
+ frameLayout -label "Stitch Type" -collapsable 1;
+  columnLayout -adjustableColumn true;
+   frameLayout -label "Stitches";
+    //rowColumnLayout; //NEED TO FIX
+    scrollLayout;
+    rowColumnLayout -numberOfRows 4;
+   	  symbolButton -image "circle.xpm" -command "circle";
+ 	  symbolButton -image "sphere.xpm" -command "sphere";
+	  symbolButton -image "cube.xpm" -command "polyCube";
+	   symbolButton -image "circle.xpm" -command "circle";
+ 	  symbolButton -image "sphere.xpm" -command "sphere";
+	  symbolButton -image "cube.xpm" -command "polyCube";
+	   symbolButton -image "circle.xpm" -command "circle";
+ 	  symbolButton -image "sphere.xpm" -command "sphere";
+	  symbolButton -image "cube.xpm" -command "polyCube";
+	   symbolButton -image "circle.xpm" -command "circle";
+ 	  symbolButton -image "sphere.xpm" -command "sphere";
+	  symbolButton -image "cube.xpm" -command "polyCube";
+	   symbolButton -image "circle.xpm" -command "circle";
+ 	  symbolButton -image "sphere.xpm" -command "sphere";
+	  symbolButton -image "cube.xpm" -command "polyCube";
+	   symbolButton -image "circle.xpm" -command "circle";
+ 	  symbolButton -image "sphere.xpm" -command "sphere";
+	  symbolButton -image "cube.xpm" -command "polyCube";
+
+	setParent ..;
+   setParent ..;
+   button -l "Apply to Faces";
+
+   columnLayout;
+	intSliderGrp -label "Slide Me" -field true
+     -minValue 1 -maxValue 20 -value 1;
+     setParent ..;
+
+   setParent ..;
+  setParent ..;
+
+//----------------------------------------------------------------------//
+// Set Cable Edges   													//
+//----------------------------------------------------------------------//
+
+ frameLayout -label "SetCable Edges" -collapsable 1;
+  columnLayout -columnWidth 200;
+   button -l "Set Edges";
+   setParent ..;
+  setParent ..;
+
+//----------------------------------------------------------------------//
+// Split/Collapse Edges  												//
+//----------------------------------------------------------------------//
+
+ frameLayout -label "Split or Collapse Edges" -collapsable 1;
+  columnLayout;
+   rowColumnLayout -numberOfRows 1;
+    button -l "Split Edges";
+    button -l "Collapse Edges";
+    setParent ..;
+   setParent ..;
+  setParent ..;
+
+//----------------------------------------------------------------------//
+// Add/Remove/Shift Edges  												//
+//----------------------------------------------------------------------//
+
+ frameLayout -label "Add, Remove or Shift Edges" -collapsable 1;
+  columnLayout;
+   rowColumnLayout -numberOfRows 1;
+    button -l "Add Edges";
+    button -l "Remove Edges";
+    button -l "Shift Edges";
+    setParent ..;
+   setParent ..;
+  setParent ..;
+
+//----------------------------------------------------------------------//
+// Pattern Style	  													//
+//----------------------------------------------------------------------//
+
+ frameLayout -label "Pattern Style" -collapsable 1;
+  columnLayout -adjustableColumn true;
+  frameLayout -label "Patterns";
+    rowColumnLayout -numberOfRows 1; //NEED TO FIX
+   	  symbolButton -image "circle.xpm" -command "circle";
+ 	  symbolButton -image "sphere.xpm" -command "sphere";
+	  symbolButton -image "cube.xpm" -command "polyCube";
+	setParent ..;
+   setParent ..;
+   setParent ..;
+   button -l "Generate";
+  setParent ..;
+
+showWindow MyWindow;

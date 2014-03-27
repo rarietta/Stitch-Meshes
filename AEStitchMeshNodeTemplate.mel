@@ -1,0 +1,200 @@
+global proc AELoopSelectionBuild (string $nodeNameArr) {
+	
+	// get node name
+	string $buffer[];
+	tokenize($nodeNameArr,".",$buffer);
+	string $nodeName = $buffer[0];
+
+	// add buttons
+	string $cmd = "setAttr " + $nodeName + ".nodeStage 1; \
+				   hide pCylinder1; showHidden StitchMeshShape; \
+				   editorTemplate -dimControl " + $nodeName + " stitchSize false; \
+				   button -e -enable true CommitTessellationButton; \
+				   button -e -enable true ReturnTessellationButton; \
+				   button -e -enable false CommitLoopButton; \
+				   button -e -enable false ReturnLoopButton;";
+	button -label "Commit Stitch Loop Selection" -c $cmd CommitLoopButton;
+	button -label "Clear Stitch Loop Selection" ReturnLoopButton;
+}
+
+global proc AELoopSelectionUpdate (string $nodeNameArr) {
+
+	// get node name
+	string $buffer[];
+	tokenize($nodeNameArr,".",$buffer);
+	string $nodeName = $buffer[0];
+	
+	// dim/undim attribute fields based on nodeStage
+	int $stage = `getAttr ($nodeName + ".nodeStage")`;
+	if ($stage == 0) {
+		button -e -enable true CommitLoopButton;
+		button -e -enable true ReturnLoopButton;
+	} else {
+		button -e -enable false CommitLoopButton;
+		button -e -enable false ReturnLoopButton;
+	}
+
+	// add buttons
+	string $cmd = "setAttr " + $nodeName + ".nodeStage 1; \
+				   hide pCylinder1; showHidden StitchMeshShape; \
+				   editorTemplate -dimControl " + $nodeName + " stitchSize false; \
+				   button -e -enable true CommitTessellationButton; \
+				   button -e -enable true ReturnTessellationButton; \
+				   button -e -enable false CommitLoopButton; \
+				   button -e -enable false ReturnLoopButton";
+	button -e -c $cmd CommitLoopButton;
+}
+
+global proc AETessellationBuild (string $nodeNameArr) {
+
+	// get node name
+	string $buffer[];
+	tokenize($nodeNameArr,".",$buffer);
+	string $nodeName = $buffer[0];
+
+	// add  buttons
+	editorTemplate -dimControl $nodeName stitchSize true;
+	string $commitCmd = "setAttr " + $nodeName + ".nodeStage 2; \
+						 editorTemplate -dimControl " + $nodeName + " stitchSize true; \
+					     button -e -enable false CommitTessellationButton; \
+					     button -e -enable false ReturnTessellationButton; \
+					     button -e -enable true CommitEditButton; \
+					     button -e -enable true ReturnEditButton;";
+	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 0; \
+						 showHidden pCylinder1; hide StitchMeshShape; \
+						 editorTemplate -dimControl " + $nodeName + " stitchSize true; \
+						 button -e -enable false CommitTessellationButton; \
+					     button -e -enable false ReturnTessellationButton; \
+					     button -e -enable true CommitLoopButton; \
+					     button -e -enable true ReturnLoopButton;";
+	button -label "Commit and Edit Stitch Mesh"   -enable false -c $commitCmd CommitTessellationButton;
+	button -label "Return to Edge Loop Selection" -enable false -c $returnCmd ReturnTessellationButton;
+}
+
+global proc AETessellationUpdate (string $nodeNameArr) {
+
+	// get node name
+	string $buffer[];
+	tokenize($nodeNameArr,".",$buffer);
+	string $nodeName = $buffer[0];
+
+	// dim/undim attribute fields based on nodeStage
+	int $stage = `getAttr ($nodeName + ".nodeStage")`;
+	if ($stage == 1) {
+		editorTemplate -dimControl $nodeName stitchSize false;
+		button -e -enable true CommitTessellationButton;
+		button -e -enable true ReturnTessellationButton;
+	} else { 
+		editorTemplate -dimControl $nodeName stitchSize true;
+		button -e -enable false CommitTessellationButton;
+		button -e -enable false ReturnTessellationButton;
+	}
+
+	// update button commands
+	string $commitCmd = "setAttr " + $nodeName + ".nodeStage 2; \
+					     button -e -enable false CommitTessellationButton; \
+					     button -e -enable false ReturnTessellationButton; \
+					     button -e -enable true CommitEditButton; \
+					     button -e -enable true ReturnEditButton; \
+						 editorTemplate -dimControl " + $nodeName + " stitchSize true;";
+	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 0; \
+						 showHidden pCylinder1; hide StitchMeshShape; \
+						 button -e -enable false CommitTessellationButton; \
+					     button -e -enable false ReturnTessellationButton; \
+					     button -e -enable true CommitLoopButton; \
+					     button -e -enable true ReturnLoopButton; \
+						 editorTemplate -dimControl " + $nodeName + " stitchSize true;";
+	button -e -c $commitCmd CommitTessellationButton;
+	button -e -c $returnCmd ReturnTessellationButton;
+}	
+
+global proc AEStitchEditBuild (string $nodeNameArr) {
+
+	// get node name
+	string $buffer[];
+	tokenize($nodeNameArr,".",$buffer);
+	string $nodeName = $buffer[0];
+
+	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 1; \
+						 button -e -enable true CommitTessellationButton; \
+					     button -e -enable true ReturnTessellationButton; \
+					     button -e -enable false CommitEditButton; \
+					     button -e -enable false ReturnEditButton; \
+						 editorTemplate -dimControl " + $nodeName + " stitchSize false; \
+						 hide pCylinder1; showHidden StitchMeshShape;";
+
+	button -label "Commit Stitch Edits and Relax" -enable false CommitEditButton;
+	button -label "Clear Edits and Return to Tessellation" -enable false -c $returnCmd ReturnEditButton;
+}
+
+global proc AEStitchEditUpdate (string $nodeNameArr) {
+
+	// get node name
+	string $buffer[];
+	tokenize($nodeNameArr,".",$buffer);
+	string $nodeName = $buffer[0];
+
+	// dim/undim attribute fields based on nodeStage
+	int $stage = `getAttr ($nodeName + ".nodeStage")`;
+	if ($stage == 2) {
+		button -e -enable true CommitEditButton;
+		button -e -enable true ReturnEditButton;
+	} else {
+		button -e -enable false CommitEditButton; 
+		button -e -enable false ReturnEditButton;
+	}
+	
+	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 1; \
+						 button -e -enable true CommitTessellationButton; \
+					     button -e -enable true ReturnTessellationButton; \
+					     button -e -enable false CommitEditButton; \
+					     button -e -enable false ReturnEditButton; \
+						 editorTemplate -dimControl " + $nodeName + " stitchSize false; \
+						 hide pCylinder1; showHidden StitchMeshShape;";
+
+	button -e -c $returnCmd ReturnEditButton;
+}
+		
+
+//------------------------------------------------------------------------------------------------------------------//
+// MAIN AETEMPLATE FUNCTION
+//------------------------------------------------------------------------------------------------------------------//
+
+global proc AEStitchMeshNodeTemplate( string $nodeName ) {
+
+	editorTemplate -beginScrollLayout;
+	editorTemplate -suppress "inputMesh";
+	editorTemplate -suppress "outputMesh";
+	editorTemplate -suppress "nodeStage";
+	editorTemplate -suppress "caching";
+	editorTemplate -suppress "nodeState";
+
+	//--------------------------------------------------------------------------------------------------------------//
+	// edge loop selection stage
+	//--------------------------------------------------------------------------------------------------------------//
+	editorTemplate -beginLayout "Edge Loop Selection" -collapse false;
+		editorTemplate -callCustom "AELoopSelectionBuild" "AELoopSelectionUpdate" $nodeName;
+	editorTemplate -endLayout;
+	editorTemplate -addSeparator;
+
+	//--------------------------------------------------------------------------------------------------------------//
+	// tessellation stage
+	//--------------------------------------------------------------------------------------------------------------//
+	editorTemplate -beginLayout "Tessellation" -collapse false;
+		editorTemplate -addControl "stitchSize";
+		print ("nodeName = " + $nodeName);
+		editorTemplate -dimControl $nodeName "stitchSize" 1;
+		editorTemplate -callCustom "AETessellationBuild" "AETessellationUpdate" $nodeName;
+	editorTemplate -endLayout;
+	editorTemplate -addSeparator;
+	
+	//--------------------------------------------------------------------------------------------------------------//
+	// stitch mesh editing stage
+	//--------------------------------------------------------------------------------------------------------------//
+	editorTemplate -beginLayout "Stitch Level Editing" -collapse false;
+		editorTemplate -callCustom "AEStitchEditBuild" "AEStitchEditUpdate" $nodeName;
+	editorTemplate -endLayout;
+	editorTemplate -addSeparator;
+
+	editorTemplate -endScrollLayout;
+}

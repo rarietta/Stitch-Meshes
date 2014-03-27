@@ -30,6 +30,9 @@ MStatus initializePlugin( MObject obj )
 		status.perror("registerNode");
 		return status;
 	}
+
+	// Register Tessellation Command
+	//status = plugin.registerCommand("tessellateStitchMeshNode");
 	
 	//----------------------------------------------------------------------------------------------//
 	// Create Menu For LSystemCmd																	//

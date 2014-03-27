@@ -37,22 +37,24 @@ using namespace std;
 
 MStatus returnStatus;
 MObject StitchMeshNode::inputMesh;
+MObject StitchMeshNode::nodeStage;
 MObject StitchMeshNode::stitchSize;
 MObject StitchMeshNode::outputMesh;
 MTypeId StitchMeshNode::id( 0x00004 );
-MCallbackId callbackId = -1;
+MString inputShapeName;
 
 //==============================================================================================================//
 // Tessellate the Input Mesh																					//
 //==============================================================================================================//
 
-MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData,
-											MFnMesh &inputMeshFn, MFnMesh &outputMeshFn)
+MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData, MFnMesh &outputMeshFn)
 {
 	//--------------------------------------------------------------------------------------------------------------//
 	// Iterate through all poly face edge loops to tesselate														//
 	//--------------------------------------------------------------------------------------------------------------//
 
+	MSubFaces.clear();
+	int subfaceId = inputMeshFn->numPolygons();
 	int numPolyMeshFaceLoops = (int) MPolyMeshFaceLoops.size();
 	for (int n = 0; n < numPolyMeshFaceLoops; n++)
 	{
@@ -75,16 +77,16 @@ MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData,
 			// get first wale edge
 			PolyMeshFace currentFace = currentLoop[i];
 			currentFace.getWaleEdge1(vertices);
-			inputMeshFn.getPoint(vertices[0], w0);
-			inputMeshFn.getPoint(vertices[1], w1);
+			inputMeshFn->getPoint(vertices[0], w0);
+			inputMeshFn->getPoint(vertices[1], w1);
 			totalLength += (w1 - w0).length();
 
 			// get second wale edge only for final face
 			// (assuming potential for unclosed loops)
 			if (i == currentLoop.size()-1) {
 				currentFace.getWaleEdge2(vertices);
-				inputMeshFn.getPoint(vertices[0], w0);
-				inputMeshFn.getPoint(vertices[1], w1);
+				inputMeshFn->getPoint(vertices[0], w0);
+				inputMeshFn->getPoint(vertices[1], w1);
 				totalLength += (w1 - w0).length();
 			}
 		} 
@@ -115,34 +117,34 @@ MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData,
 				
 			// get backwards-first corner as origin
 			MPoint origin;
-			inputMeshFn.getPoint(currentFace.courseEdgeBkwd[0], origin);
+			inputMeshFn->getPoint(currentFace.courseEdgeBkwd[0], origin);
 
 			// vector corresponding to first wale edge
 			MFloatVector wale1Dir;
 			currentFace.getWaleEdge1(waleVtxs); 
-			inputMeshFn.getPoint(waleVtxs[0], v0);
-			inputMeshFn.getPoint(waleVtxs[1], v1);
+			inputMeshFn->getPoint(waleVtxs[0], v0);
+			inputMeshFn->getPoint(waleVtxs[1], v1);
 			wale1Dir = v1-v0;
 
 			// vector corresponding to second wale edge
 			MFloatVector wale2Dir;
 			currentFace.getWaleEdge2(waleVtxs); 
-			inputMeshFn.getPoint(waleVtxs[0], v0);
-			inputMeshFn.getPoint(waleVtxs[1], v1);
+			inputMeshFn->getPoint(waleVtxs[0], v0);
+			inputMeshFn->getPoint(waleVtxs[1], v1);
 			wale2Dir = v1-v0;
 
 			// vector corresponding to backwards course edge
 			MFloatVector course1Dir;
 			currentFace.getCourseEdgeBkwd(courseVtxs);
-			inputMeshFn.getPoint(courseVtxs[0], v0);
-			inputMeshFn.getPoint(courseVtxs[1], v1);
+			inputMeshFn->getPoint(courseVtxs[0], v0);
+			inputMeshFn->getPoint(courseVtxs[1], v1);
 			course1Dir = v1-v0;
 				
 			// vector corresponding to forwards course edge
 			MFloatVector course2Dir;
 			currentFace.getCourseEdgeFwrd(courseVtxs);
-			inputMeshFn.getPoint(courseVtxs[0], v0);
-			inputMeshFn.getPoint(courseVtxs[1], v1);
+			inputMeshFn->getPoint(courseVtxs[0], v0);
+			inputMeshFn->getPoint(courseVtxs[1], v1);
 			course2Dir = v1-v0;
 
 			//------------------------------------------------------------------------------------------------------//
@@ -215,9 +217,13 @@ MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData,
 					vertexLoop.append(stitchRowPts[ u ][v+1]);
 					vertexLoop.append(stitchRowPts[u+1][v+1]);
 					vertexLoop.append(stitchRowPts[u+1][ v ]);
-						
+					
+					// create output subface
+					SubFace subface(2, 2, subfaceId);
+					MSubFaces.push_back(subface);
+
 					// add polygon to mesh
-					outputMeshFn.addPolygon(vertexLoop);
+					outputMeshFn.addPolygon(vertexLoop, subfaceId++, true, 1.0e-3);
 				}
 
 				//--------------------------------------------------------------------------------------------------//
@@ -225,27 +231,39 @@ MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData,
 				// remaining points as an increase / decrease face at the end of the stitch row						//
 				//--------------------------------------------------------------------------------------------------//
 
-				// first row has more points
-				if (numPts2 <  numPts1) {
+				// backward edge has more points
+				if (numPts1 > numPts2) {
 					vertexLoop.clear();
 					for (int v = numPts2-1; v < numPts1; v++)
 						vertexLoop.append(stitchRowPts[u][v]);
 					vertexLoop.append(stitchRowPts[u+1][numPts2-1]);
-					outputMeshFn.addPolygon(vertexLoop, outputMeshFn.numPolygons());
+					
+					// create output subface
+					SubFace subface(2, 1, subfaceId);
+					MSubFaces.push_back(subface);
+					
+					// add polygon to mesh
+					outputMeshFn.addPolygon(vertexLoop, subfaceId++);
 				}
 
-				// lower row has more points
-				else if (numPts1 < numPts2) {
+				// forward edge has more points
+				else if (numPts2 > numPts1) {
 					vertexLoop.clear();
-					for (int v = numPts1-1; v < numPts2; v++)
-						vertexLoop.append(stitchRowPts[u+1][v]);
 					vertexLoop.append(stitchRowPts[u][numPts1-1]);
-					outputMeshFn.addPolygon(vertexLoop);
+					for (int v = numPts2-1; v >= numPts1-1; v--)
+						vertexLoop.append(stitchRowPts[u+1][v]);
+					
+					// create output subface
+					SubFace subface(1, 2, subfaceId);
+					MSubFaces.push_back(subface);
+					
+					// add polygon to mesh
+					outputMeshFn.addPolygon(vertexLoop, subfaceId++);
 				}
 			} 
 		} // per PolyMeshFace loop
 	} // per PolyMeshFaceLoop loop
-
+	
 	return MStatus::kSuccess;
 }
 
@@ -257,6 +275,7 @@ void* StitchMeshNode::creator()
 {
 	StitchMeshNode *node = new StitchMeshNode();
 	node->numLoopFaces = 0;
+	node->callbackId = -1;
 	node->inputMeshFn = NULL;
 	node->inputMeshItEdges = NULL;
 	node->inputMeshItFaces = NULL;
@@ -289,6 +308,13 @@ MStatus StitchMeshNode::initialize()
 	nAttr.setSoftMax(8.0);
 	
 	//----------------------------------------------------------------------------------------------------------//
+	// Create "Generate Stitch Mesh" Boolean Attribute											                //
+	//----------------------------------------------------------------------------------------------------------//
+
+	StitchMeshNode::nodeStage = nAttr.create("nodeStage", "sg", MFnNumericData::kInt, LOOP_SELECTION, &returnStatus);
+	McheckErr(returnStatus, "ERROR creating StitchMeshNode nodeStage attribute\n");
+	
+	//----------------------------------------------------------------------------------------------------------//
 	// Create Input Mesh Attribute																                //
 	//----------------------------------------------------------------------------------------------------------//
 	
@@ -315,6 +341,10 @@ MStatus StitchMeshNode::initialize()
 	returnStatus = addAttribute(StitchMeshNode::stitchSize);
 	McheckErr(returnStatus, "ERROR adding stitchSize attribute\n");
 
+	// Add stitch size attribute
+	returnStatus = addAttribute(StitchMeshNode::nodeStage);
+	McheckErr(returnStatus, "ERROR adding nodeStage attribute\n");
+
 	// Add mesh attribute
 	returnStatus = addAttribute(StitchMeshNode::outputMesh);
 	McheckErr(returnStatus, "ERROR adding outputMesh attribute\n");
@@ -324,6 +354,7 @@ MStatus StitchMeshNode::initialize()
 	//----------------------------------------------------------------------------------------------------------//
 	
 	returnStatus = attributeAffects(StitchMeshNode::inputMesh,	StitchMeshNode::outputMesh);
+	returnStatus = attributeAffects(StitchMeshNode::nodeStage,  StitchMeshNode::outputMesh);
 	returnStatus = attributeAffects(StitchMeshNode::stitchSize, StitchMeshNode::outputMesh);
 	McheckErr(returnStatus, "ERROR in attributeAffects\n");
 	
@@ -339,7 +370,7 @@ MStatus StitchMeshNode::initialize()
 // that edge. If no valid edge is selected, this will return -1.														//
 //======================================================================================================================//
 
-int getSelectedEdgeIndex(void)
+bool getSelectedEdge(MString &meshShapeName, int &index)
 { 	 
 	// get the current selection list from maya
 	MSelectionList selected;
@@ -358,7 +389,6 @@ int getSelectedEdgeIndex(void)
 		MStringArray selectedEdges;
 		selected.getSelectionStrings(selectedEdges);
 		char *selectedName = (char *)selectedEdges[0].asChar();
-		cout << selectedName << endl;
 
 		// split the name of the selection to
 		// get the edge index
@@ -371,10 +401,13 @@ int getSelectedEdgeIndex(void)
 		}
 
 		// return the edge index
-		if (selectedNameTokens.size() > 2 && strcmp(selectedNameTokens[1], "e") == 0)
-			return atoi(selectedNameTokens[2]);
+		if (selectedNameTokens.size() > 2 && strcmp(selectedNameTokens[1], "e") == 0) {
+			index = atoi(selectedNameTokens[2]);
+			meshShapeName = MString(selectedNameTokens[0]);
+			return true;
+		}
 	}
- 	return -1;
+ 	return false;
 }
 
 //======================================================================================================================//
@@ -384,21 +417,26 @@ int getSelectedEdgeIndex(void)
 //void StitchMeshNode::edgeSelectCB(MFnMesh &inputMeshFn, MItMeshEdge &inputMeshEdgeIt)
 void edgeSelectCB(void * data)
 {
-	MEventMessage::removeCallback(callbackId);
-
 	//------------------------------------------------------------------------------------------------------------------//
 	// Get index of currently selected edge (returns -1 if selection is not an edge)									//
 	//------------------------------------------------------------------------------------------------------------------//
 	
-	int selectedEdgeIndex = getSelectedEdgeIndex();
-	if (selectedEdgeIndex < 0) { return; }
+	int selectedEdgeIndex;
+	//MString inputShapeName;
+	if (!getSelectedEdge(inputShapeName, selectedEdgeIndex))
+		return;
 		
 	//------------------------------------------------------------------------------------------------------------------//
 	// Local variables necessary for computation																		//
 	//------------------------------------------------------------------------------------------------------------------//
-
+	
 	// input stitch mesh node from client data pointer
 	StitchMeshNode *stitchnode = (StitchMeshNode*) data;
+
+	// remove callback since new edges will be selected
+	// it will be added back to the program at the end
+	MEventMessage::removeCallback(stitchnode->callbackId);
+
 	MFnMesh *inputMeshFn = stitchnode->inputMeshFn;
 	MItMeshEdge *inputMeshEdgeIt = stitchnode->inputMeshItEdges;
 
@@ -438,13 +476,9 @@ void edgeSelectCB(void * data)
 	if ((numBoundingRows == 2) || (numBoundingRows == 1 && inputMeshEdgeIt->onBoundary())
 		|| (numBoundingRows == 0 && !inputMeshEdgeIt->onBoundary()))
 	{
-		cout << "CASE 1: numBoundingRows = " << numBoundingRows << endl;
-	
-		// return from callback function
-		if (stitchnode->numLoopFaces < inputMeshFn->numPolygons()) {
-			cout << "re-adding callback" << endl;
-			callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, stitchnode);
-		}
+		stitchnode->callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, stitchnode);
+		MString cmd = "select " + stitchnode->name();
+		MGlobal::executeCommand(cmd);
 		return;
 	}
 
@@ -454,8 +488,6 @@ void edgeSelectCB(void * data)
 	
 	else if (numBoundingRows == 0 && inputMeshEdgeIt->onBoundary())
 	{
-		cout << "CASE 2" << endl;
-
 		do {
 			// get vertex endpoints of selected edge
 			inputMeshFn->getEdgeVertices(inputMeshEdgeIt->index(), courseBkwdVtxs);
@@ -535,8 +567,6 @@ void edgeSelectCB(void * data)
 	
 	else if (numBoundingRows == 1 && !inputMeshEdgeIt->onBoundary())
 	{
-		cout << "CASE 3" << endl;
-		
 		do {
 			// get course vertex endpoint indices in same direction as
 			// adjacent face's forward edge
@@ -616,49 +646,67 @@ void edgeSelectCB(void * data)
 	stitchnode->numLoopFaces += (int) faceLoop.size();
 	
 	//--------------------------------------------------------------------------------------------------------------//
-	// DEBUG: Create color set for face loop																		//
+	// Create and display color set for face loop																		//
 	//--------------------------------------------------------------------------------------------------------------//
 
-	MColor loopColor(0.0, 1.0, 0.0);
-	MColorArray loopColorArray;
-	loopColorArray.append(loopColor);
-
-	cout << "inputMeshFn apiType = " << inputMeshFn->object().apiTypeStr() << endl;
-	MString* colorSetName = new MString("loopSelectionSet");
-	inputMeshFn->createColorSetWithName(*colorSetName, NULL, &returnStatus);
-	cout << returnStatus << endl;
-	inputMeshFn->setColors(loopColorArray, colorSetName, MFnMesh::kRGB);
-	
 	for (int i = 0; i < faceLoop.size(); i++) {
-		MIntArray faceVertList;
-		stitchnode->inputMeshFn->getPolygonVertices(faceLoop[i].faceIndex, faceVertList);
-		for (int v = 0; v < faceVertList.length(); v++)
-			inputMeshFn->assignColor(faceLoop[i].faceIndex, v, 0, colorSetName);
-		cout << inputMeshFn->setFaceColor(loopColor, faceLoop[i].faceIndex) << " ";
+
+		// clear current vertex-face selection
+		MGlobal::executeCommand("select -d");
+		
+		// get current polymeshface of loop for coloring
+		PolyMeshFace currentFace = faceLoop[i];
+		MIntArray currentFwrd, currentBkwd;
+		currentFace.getCourseEdgeFwrd(currentFwrd);
+		currentFace.getCourseEdgeBkwd(currentBkwd);
+
+		// select all vertex-faces in the polymeshface
+		for (int v = 0; v < currentFwrd.length(); v++) {
+			MString cmd = "select -tgl " + inputShapeName + ".vtxFace[" + 
+						  currentFwrd[v] + "][" + currentFace.faceIndex + "]";
+			MGlobal::executeCommand(cmd);
+		}
+		for (int v = 0; v < currentBkwd.length(); v++) {
+			MString cmd = "select -tgl " + inputShapeName + ".vtxFace[" + 
+						  currentBkwd[v] + "][" + currentFace.faceIndex + "]";
+			MGlobal::executeCommand(cmd);
+		}
+
+		// color per vertex
+		MGlobal::executeCommand("polyColorPerVertex -r 0 -g 1 -b 0");
+		MGlobal::executeCommand("polyOptions -colorShadedDisplay true");
+		MGlobal::executeCommand("polyOptions -colorMaterialChannel \"DIFFUSE\"");
+		
+		// clear current vertex-face selection
+		MGlobal::executeCommand("select -d");
 	}
-	inputMeshFn->displayColors();
-	delete colorSetName;
+	
+	//------------------------------------------------------------------------------------------------------------------//
+	// Re-add callback to program if it is still needed																	//
+	//------------------------------------------------------------------------------------------------------------------//
+
+	if (stitchnode->numLoopFaces < inputMeshFn->numPolygons())
+		stitchnode->callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, stitchnode);
 	
 	//------------------------------------------------------------------------------------------------------------------//
 	// Return from callback function																					//
 	//------------------------------------------------------------------------------------------------------------------//
 	
-	if (stitchnode->numLoopFaces < inputMeshFn->numPolygons()) {
-		cout << "re-adding callback" << endl;
-		callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, stitchnode);
-	}
+	MString cmd = "select " + stitchnode->name();
+	MGlobal::executeCommand(cmd);
 	return;
 }
 
-//--------------------------------------------------------------------------------------------------------------//
-// User interaction stage for selecting edge loops in direction of stitch
-//--------------------------------------------------------------------------------------------------------------//
+//======================================================================================================================//
+// User interaction stage for selecting edge loops in direction of stitch												//
+// This function simply adds the callback to the program for edge loop selection (if it is needed)						//
+//======================================================================================================================//
 
 MStatus StitchMeshNode::defineStitchLoops(void) {
 
 	// add callback function for edge selection
-	MGlobal::setSelectionMode(MGlobal::MSelectionMode::kSelectComponentMode);
-	callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, this);
+	if (callbackId == -1) { callbackId = MEventMessage::addEventCallback("SelectionChanged", edgeSelectCB, this); }
+	MGlobal::executeCommand("selectType -pe 1");
 	return MStatus::kSuccess;
 }
 
@@ -700,14 +748,16 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 			faceLoopIndex.append(-1);
 			faceLoopNumber.append(-1);
 		}
-		cout << "inputMesh apiType = " << inputMesh.apiTypeStr() << endl;
-		cout << "inputMeshData apiType = " << inputMeshData.apiTypeStr() << endl;
-		//inputMeshFn->setObject(inputMeshData);
 		
 		// Get default stitch size
 		MDataHandle stitchSizeDataHandle = data.inputValue(stitchSize, &returnStatus); 
 		McheckErr(returnStatus, "Error getting stitch size data handle\n");
 		float stitchSizeData = stitchSizeDataHandle.asFloat();
+
+		// Get binary stitch generation value
+		MDataHandle nodeStageDataHandle = data.inputValue(nodeStage, &returnStatus); 
+		McheckErr(returnStatus, "Error getting stitch generation data handle\n");
+		int nodeStageData = nodeStageDataHandle.asInt();
 
 		//--------------------------------------------------------------------------------------------------------------//
 		// Get output handle for mesh creation																			//
@@ -719,41 +769,83 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 
 		// create output object
 		MFnMeshData dataCreator;
-		MObject newOutputData = dataCreator.create(&returnStatus);
+		MObject outputMeshData = dataCreator.create(&returnStatus);
 		McheckErr(returnStatus, "ERROR creating outputData");
 
 		// put copy of input mesh in output object
-		MFnMesh outputMeshFn;
-		outputMeshFn.copy(inputMeshData, newOutputData);
-		outputMeshFn.setObject(newOutputData);
-		cout << "inputDagPath apiType = " << inputDagPath.apiType() << endl;
-		cout << "outputMesh apiType = " << outputMesh.apiTypeStr() << endl;
-		cout << "outputMeshData apiType = " << newOutputData.apiTypeStr() << endl;
+		MObject inputData = data.inputValue(inputMesh).data();
+		MObject outputMeshShape = MFnMeshData().create();
+		MFnMesh outputMeshFnShape = MFnMesh().copy(inputData, outputMeshShape);
+		MFnMesh outputMeshFnData  = MFnMesh().copy(inputMeshData, outputMeshData);
+		outputMeshFnData.setObject(outputMeshShape);
 
+		switch (nodeStageData) {
+			
 		//--------------------------------------------------------------------------------------------------------------//
 		// User interaction stage for selecting edge loops in direction of stitch
 		//--------------------------------------------------------------------------------------------------------------//
-
-		defineStitchLoops();
+		
+		case (LOOP_SELECTION):
+			defineStitchLoops();
+			break;
 
 		//--------------------------------------------------------------------------------------------------------------//
 		// Call tessellation function																					//
 		//--------------------------------------------------------------------------------------------------------------//
-
-		if (numLoopFaces > 0)
-		{
-			tessellateInputMesh(stitchSizeData, *inputMeshFn, outputMeshFn);
-			
-			// delete original input faces. only keep tesselated rows
-			for (int q = inputMeshFn->numPolygons()-1; q >= 0; q--)
-				outputMeshFn.deleteFace(q);
 		
-			//----------------------------------------------------------------------------------------------------------//
-			// Update output mesh to return																				//
-			//----------------------------------------------------------------------------------------------------------//
+		case (STITCH_EDITING):
+		case (TESSELLATION):
 
-			outputMeshFn.updateSurface();
-			outputHandle.set(newOutputData);
+			// if all faces are designated by the user during loop selection,
+			// proceed with tessellation
+
+			if (numLoopFaces == inputMeshFn->numPolygons() && nodeStageData)
+			{
+				// tessellate the mesh
+				tessellateInputMesh(stitchSizeData, outputMeshFnData);
+
+				// delete original input faces. only keep tesselated rows
+				for (int q = inputMeshFn->numPolygons()-1; q >= 0; q--)
+					outputMeshFnData.deleteFace(q);
+
+				// update surface with new faces
+				outputMeshFnData.updateSurface();
+				outputHandle.set(outputMeshShape);
+				MGlobal::executeCommand("select " + this->name());
+			}
+
+			// if not all faces are designated, reset the nodeStage attribute
+			else {
+				MString resetStageCmd = "setAttr " + this->name() + ".nodeStage 0";
+				MGlobal::executeCommand(resetStageCmd);
+			}
+			
+			if (nodeStageData == TESSELLATION)
+				break;
+
+			//----------------------------------------------------------------------------------------------------------//
+			// Update output mesh colors to for stitch level editing													//
+			//----------------------------------------------------------------------------------------------------------//
+			
+			for (int i = 0; i < MSubFaces.size(); i++)
+			{
+				SubFace subface = MSubFaces[i];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2)
+					outputMeshFnShape.setFaceColor(MColor(1,1,0), subface.faceId-inputMeshFn->numPolygons());
+				if (subface.nBkwd == 2 && subface.nFwrd == 1)
+					outputMeshFnShape.setFaceColor(MColor(0,0,1), subface.faceId-inputMeshFn->numPolygons());
+				if (subface.nBkwd == 1 && subface.nFwrd == 2)
+					outputMeshFnShape.setFaceColor(MColor(1,0,0), subface.faceId-inputMeshFn->numPolygons());
+				MGlobal::executeCommand("setAttr StitchMeshShape.displayColors true");
+				outputHandle.setMObject(outputMeshShape);
+			}
+			
+			// clear selection
+			MGlobal::executeCommand("select " + this->name());
+			break;
+
+		default:
+			break;
 		}
 
 		data.setClean( plug );
