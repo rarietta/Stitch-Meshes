@@ -1,3 +1,6 @@
+
+string $path = "C:/Users/Jennie Shapira/Documents/GitHub/StitchMeshes/icons/";
+
 //----------------------------------------------------------------------//
 // Tool Settings Window				                 					//
 //----------------------------------------------------------------------//
@@ -28,25 +31,23 @@ columnLayout -adjustableColumn true;// -columnWidth 200;
    frameLayout -label "Stitches";
     //rowColumnLayout; //NEED TO FIX
     scrollLayout;
-    rowColumnLayout -numberOfRows 4;
-   	  symbolButton -image "circle.xpm" -command "circle";
- 	  symbolButton -image "sphere.xpm" -command "sphere";
-	  symbolButton -image "cube.xpm" -command "polyCube";
-	   symbolButton -image "circle.xpm" -command "circle";
- 	  symbolButton -image "sphere.xpm" -command "sphere";
-	  symbolButton -image "cube.xpm" -command "polyCube";
-	   symbolButton -image "circle.xpm" -command "circle";
- 	  symbolButton -image "sphere.xpm" -command "sphere";
-	  symbolButton -image "cube.xpm" -command "polyCube";
-	   symbolButton -image "circle.xpm" -command "circle";
- 	  symbolButton -image "sphere.xpm" -command "sphere";
-	  symbolButton -image "cube.xpm" -command "polyCube";
-	   symbolButton -image "circle.xpm" -command "circle";
- 	  symbolButton -image "sphere.xpm" -command "sphere";
-	  symbolButton -image "cube.xpm" -command "polyCube";
-	   symbolButton -image "circle.xpm" -command "circle";
- 	  symbolButton -image "sphere.xpm" -command "sphere";
-	  symbolButton -image "cube.xpm" -command "polyCube";
+    rowColumnLayout -numberOfColumns 4;
+   	  symbolButton -image ($path + "tri1big2.bmp") -command "circle";
+ 	  symbolButton -image ($path + "tri2big2.bmp") -command "sphere";
+	  symbolButton -image ($path + "sq1big2.bmp") -command "polyCube";
+	   symbolButton -image ($path + "sq2big2.bmp") -command "circle";
+ 	  symbolButton -image ($path + "sq3big2.bmp") -command "sphere";
+	  symbolButton -image ($path + "pt1big2.bmp") -command "polyCube";
+	   symbolButton -image ($path + "pt2big2.bmp") -command "circle";
+ 	  symbolButton -image ($path + "pt3big2.bmp") -command "sphere";
+	  symbolButton -image ($path + "pt4big2.bmp") -command "polyCube";
+	   symbolButton -image ($path + "pt5big2.bmp") -command "circle";
+ 	  symbolButton -image ($path + "hex1big2.bmp") -command "sphere";
+	  symbolButton -image ($path + "hex2big2.bmp") -command "polyCube";
+	   symbolButton -image ($path + "hex3big2.bmp") -command "circle";
+ 	  symbolButton -image ($path + "hex4big2.bmp") -command "sphere";
+	  symbolButton -image ($path + "hex5big2.bmp") -command "polyCube";
+	  
 
 	setParent ..;
    setParent ..;
@@ -104,10 +105,26 @@ columnLayout -adjustableColumn true;// -columnWidth 200;
  frameLayout -label "Pattern Style" -collapsable 1;
   columnLayout -adjustableColumn true;
   frameLayout -label "Patterns";
-    rowColumnLayout -numberOfRows 1; //NEED TO FIX
-   	  symbolButton -image "circle.xpm" -command "circle";
- 	  symbolButton -image "sphere.xpm" -command "sphere";
-	  symbolButton -image "cube.xpm" -command "polyCube";
+  scrollLayout;
+    rowColumnLayout -numberOfColumns 4; //NEED TO FIX
+   	  symbolButton -image ($path + "MM1b.bmp") -command "circle";
+ 	  symbolButton -image ($path + "MM2b.bmp") -command "sphere";
+	  symbolButton -image ($path + "MM3b.bmp") -command "polyCube";
+    symbolButton -image ($path + "OT1b.bmp") -command "circle";
+    symbolButton -image ($path + "OT2b.bmp") -command "sphere";
+    symbolButton -image ($path + "OT3b.bmp") -command "polyCube";
+    symbolButton -image ($path + "RF1b.bmp") -command "circle";
+    symbolButton -image ($path + "RF2b.bmp") -command "sphere";
+    symbolButton -image ($path + "RF3b.bmp") -command "polyCube";
+    symbolButton -image ($path + "FR1b.bmp") -command "circle";
+    symbolButton -image ($path + "FR2b.bmp") -command "sphere";
+    symbolButton -image ($path + "FR3b.bmp") -command "polyCube";
+    symbolButton -image ($path + "BC1b.bmp") -command "circle";
+    symbolButton -image ($path + "BC2b.bmp") -command "sphere";
+    symbolButton -image ($path + "BC3b.bmp") -command "polyCube";
+    symbolButton -image ($path + "CW1b.bmp") -command "circle";
+    symbolButton -image ($path + "CW2b.bmp") -command "sphere";
+    symbolButton -image ($path + "CW3b.bmp") -command "polyCube";
 	setParent ..;
    setParent ..;
    setParent ..;

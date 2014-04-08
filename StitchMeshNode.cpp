@@ -37,11 +37,14 @@ using namespace std;
 
 MStatus returnStatus;
 MObject StitchMeshNode::inputMesh;
+MObject StitchMeshNode::outputMesh;
+MObject StitchMeshNode::inputMeshName;
+MObject StitchMeshNode::outputMeshName;
 MObject StitchMeshNode::nodeStage;
 MObject StitchMeshNode::stitchSize;
-MObject StitchMeshNode::outputMesh;
 MTypeId StitchMeshNode::id( 0x00004 );
 MString inputShapeName;
+MString outputShapeName;
 
 //==============================================================================================================//
 // Tessellate the Input Mesh																					//
@@ -220,6 +223,12 @@ MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 					
 					// create output subface
 					SubFace subface(2, 2, subfaceId);
+					subface.bkwdPoints.clear();
+					subface.fwrdPoints.clear();
+					subface.bkwdPoints.append(stitchRowPts[ u ][ v ]);
+					subface.bkwdPoints.append(stitchRowPts[ u ][v+1]);
+					subface.fwrdPoints.append(stitchRowPts[u+1][ v ]);
+					subface.fwrdPoints.append(stitchRowPts[u+1][v+1]);
 					MSubFaces.push_back(subface);
 
 					// add polygon to mesh
@@ -240,6 +249,9 @@ MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 					
 					// create output subface
 					SubFace subface(2, 1, subfaceId);
+					for (int v = numPts2-1; v < numPts1; v++)
+						subface.bkwdPoints.append(stitchRowPts[u][v]);
+					subface.fwrdPoints.append(stitchRowPts[u+1][numPts2-1]);
 					MSubFaces.push_back(subface);
 					
 					// add polygon to mesh
@@ -255,6 +267,9 @@ MStatus StitchMeshNode::tessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 					
 					// create output subface
 					SubFace subface(1, 2, subfaceId);
+					subface.bkwdPoints.append(stitchRowPts[u][numPts1-1]);
+					for (int v = numPts1; v < numPts2; v++)
+						subface.fwrdPoints.append(stitchRowPts[u+1][v]);
 					MSubFaces.push_back(subface);
 					
 					// add polygon to mesh
@@ -292,7 +307,6 @@ MStatus StitchMeshNode::initialize()
 	// Initialize Variables																		                //
 	//----------------------------------------------------------------------------------------------------------//
 	
-	MFnUnitAttribute uAttr;
 	MFnTypedAttribute tAttr;
 	MFnNumericAttribute nAttr;
 
@@ -319,6 +333,7 @@ MStatus StitchMeshNode::initialize()
 	//----------------------------------------------------------------------------------------------------------//
 	
 	StitchMeshNode::inputMesh = tAttr.create("inputMesh", "in", MFnData::kMesh, &returnStatus);
+	StitchMeshNode::inputMeshName = tAttr.create("inputMeshName", "inname", MFnData::kString, &returnStatus);
 	McheckErr(returnStatus, "ERROR creating StitchMeshNode output attribute\n");
 	
 	//----------------------------------------------------------------------------------------------------------//
@@ -326,6 +341,7 @@ MStatus StitchMeshNode::initialize()
 	//----------------------------------------------------------------------------------------------------------//
 
 	StitchMeshNode::outputMesh = tAttr.create("outputMesh", "out", MFnData::kMesh, &returnStatus); 
+	StitchMeshNode::outputMeshName = tAttr.create("outputMeshName", "outname", MFnData::kString, &returnStatus);
 	tAttr.setStorable(false);
 	McheckErr(returnStatus, "ERROR creating StitchMeshNode output attribute\n");
 
@@ -335,7 +351,8 @@ MStatus StitchMeshNode::initialize()
 
 	// Add input mesh attribute
 	returnStatus = addAttribute(StitchMeshNode::inputMesh);
-	McheckErr(returnStatus, "ERROR adding time attribute\n");
+	returnStatus = addAttribute(StitchMeshNode::inputMeshName);
+	McheckErr(returnStatus, "ERROR adding input attributes\n");
 
 	// Add stitch size attribute
 	returnStatus = addAttribute(StitchMeshNode::stitchSize);
@@ -347,7 +364,8 @@ MStatus StitchMeshNode::initialize()
 
 	// Add mesh attribute
 	returnStatus = addAttribute(StitchMeshNode::outputMesh);
-	McheckErr(returnStatus, "ERROR adding outputMesh attribute\n");
+	returnStatus = addAttribute(StitchMeshNode::outputMeshName);
+	McheckErr(returnStatus, "ERROR adding outputMesh attributes\n");
 
 	//----------------------------------------------------------------------------------------------------------//
 	// Attach attributes to affect output mesh												 	                //
@@ -358,6 +376,18 @@ MStatus StitchMeshNode::initialize()
 	returnStatus = attributeAffects(StitchMeshNode::stitchSize, StitchMeshNode::outputMesh);
 	McheckErr(returnStatus, "ERROR in attributeAffects\n");
 	
+	//----------------------------------------------------------------------------------------------------------//
+	// Create hard-coded stitch library																			//
+	// This will STAY hardcoded since this data is not variable													//
+	//----------------------------------------------------------------------------------------------------------//
+	/*
+	Stitch stitch1(;
+	YarnCurve curve1;
+	curve1.
+	YarnCurve curve2;
+	YarnCurve curve3;
+	stitch1.addYarnCurve(curve1);
+	*/
 	//----------------------------------------------------------------------------------------------------------//
 	// Return successful initialization															                //
 	//----------------------------------------------------------------------------------------------------------//
@@ -370,7 +400,7 @@ MStatus StitchMeshNode::initialize()
 // that edge. If no valid edge is selected, this will return -1.														//
 //======================================================================================================================//
 
-bool getSelectedEdge(MString &meshShapeName, int &index)
+bool getSelectedEdge(int &index)
 { 	 
 	// get the current selection list from maya
 	MSelectionList selected;
@@ -403,7 +433,8 @@ bool getSelectedEdge(MString &meshShapeName, int &index)
 		// return the edge index
 		if (selectedNameTokens.size() > 2 && strcmp(selectedNameTokens[1], "e") == 0) {
 			index = atoi(selectedNameTokens[2]);
-			meshShapeName = MString(selectedNameTokens[0]);
+			MString meshShapeName = MString(selectedNameTokens[0]);
+			// TODO: test if meshShapeName equals inputShapeName
 			return true;
 		}
 	}
@@ -422,8 +453,7 @@ void edgeSelectCB(void * data)
 	//------------------------------------------------------------------------------------------------------------------//
 	
 	int selectedEdgeIndex;
-	//MString inputShapeName;
-	if (!getSelectedEdge(inputShapeName, selectedEdgeIndex))
+	if (!getSelectedEdge(selectedEdgeIndex))
 		return;
 		
 	//------------------------------------------------------------------------------------------------------------------//
@@ -640,14 +670,16 @@ void edgeSelectCB(void * data)
 		} while (inputMeshEdgeIt->index() != selectedEdgeIndex);
 	}
 	
-	// push new face loop onto node's vector and update
-	// the number of faces already accounted for by loops
+	//------------------------------------------------------------------------------------------------------------------//
+	// Push new face loop onto node's vector and update the number of faces already accounted for by loops				//
+	//------------------------------------------------------------------------------------------------------------------//
+
 	stitchnode->MPolyMeshFaceLoops.push_back(faceLoop);
 	stitchnode->numLoopFaces += (int) faceLoop.size();
 	
-	//--------------------------------------------------------------------------------------------------------------//
-	// Create and display color set for face loop																		//
-	//--------------------------------------------------------------------------------------------------------------//
+	//------------------------------------------------------------------------------------------------------------------//
+	// Display colors for selected face loop																			//
+	//------------------------------------------------------------------------------------------------------------------//
 
 	for (int i = 0; i < faceLoop.size(); i++) {
 
@@ -656,21 +688,8 @@ void edgeSelectCB(void * data)
 		
 		// get current polymeshface of loop for coloring
 		PolyMeshFace currentFace = faceLoop[i];
-		MIntArray currentFwrd, currentBkwd;
-		currentFace.getCourseEdgeFwrd(currentFwrd);
-		currentFace.getCourseEdgeBkwd(currentBkwd);
-
-		// select all vertex-faces in the polymeshface
-		for (int v = 0; v < currentFwrd.length(); v++) {
-			MString cmd = "select -tgl " + inputShapeName + ".vtxFace[" + 
-						  currentFwrd[v] + "][" + currentFace.faceIndex + "]";
-			MGlobal::executeCommand(cmd);
-		}
-		for (int v = 0; v < currentBkwd.length(); v++) {
-			MString cmd = "select -tgl " + inputShapeName + ".vtxFace[" + 
-						  currentBkwd[v] + "][" + currentFace.faceIndex + "]";
-			MGlobal::executeCommand(cmd);
-		}
+		MString cmd = "select " + inputShapeName + ".f[" + currentFace.faceIndex + "];";
+		MGlobal::executeCommand(cmd);
 
 		// color per vertex
 		MGlobal::executeCommand("polyColorPerVertex -r 0 -g 1 -b 0");
@@ -722,6 +741,11 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 	
 	if (plug == outputMesh) {
 	
+		MDataHandle inputMeshNameHandle = data.inputValue(inputMeshName, &returnStatus);
+		MDataHandle outputMeshNameHandle = data.inputValue(outputMeshName, &returnStatus);
+		inputShapeName = inputMeshNameHandle.asString();
+		outputShapeName = outputMeshNameHandle.asString();
+
 		//--------------------------------------------------------------------------------------------------------------//
 		// Get input attributes																							//
 		//--------------------------------------------------------------------------------------------------------------//
@@ -785,6 +809,9 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		// User interaction stage for selecting edge loops in direction of stitch
 		//--------------------------------------------------------------------------------------------------------------//
 		
+		//case (CLEAR_LOOP_SELECTION):
+		//	clearStitchLoops();
+
 		case (LOOP_SELECTION):
 			defineStitchLoops();
 			break;
@@ -793,6 +820,7 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		// Call tessellation function																					//
 		//--------------------------------------------------------------------------------------------------------------//
 		
+		case (YARN_GENERATION):
 		case (STITCH_EDITING):
 		case (TESSELLATION):
 
@@ -820,8 +848,10 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 				MGlobal::executeCommand(resetStageCmd);
 			}
 			
-			if (nodeStageData == TESSELLATION)
+			if (nodeStageData == TESSELLATION) {
+				MGlobal::executeCommand("select " + this->name());
 				break;
+			}
 
 			//----------------------------------------------------------------------------------------------------------//
 			// Update output mesh colors to for stitch level editing													//
@@ -836,8 +866,71 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 					outputMeshFnShape.setFaceColor(MColor(0,0,1), subface.faceId-inputMeshFn->numPolygons());
 				if (subface.nBkwd == 1 && subface.nFwrd == 2)
 					outputMeshFnShape.setFaceColor(MColor(1,0,0), subface.faceId-inputMeshFn->numPolygons());
-				MGlobal::executeCommand("setAttr StitchMeshShape.displayColors true");
+				MGlobal::executeCommand("setAttr " + outputShapeName + ".displayColors true");
 				outputHandle.setMObject(outputMeshShape);
+			} 
+			
+			if (nodeStageData == STITCH_EDITING) break;
+
+			//----------------------------------------------------------------------------------------------------------//
+			// Replace tessellated faces with stitch models																//
+			//----------------------------------------------------------------------------------------------------------//
+			for (int i = 0; i < MSubFaces.size(); i++)
+			{
+				int p;
+				MVector normal;
+				MItMeshPolygon outputFaceIter(outputMeshShape);
+				MString stitchName = MString("stitch1_group") + (i+1);
+				MVector stitchNormal(0,1,0);
+				MString importCmd = MString("file -import -type \"mayaBinary\" -ra true -mergeNamespacesOnClash false -options \"v=0;\"")
+								  + MString("-pr \"C:/Users/Richard/Documents/_Academics/Penn/02_S2014/CIS_660/AuthoringTool/StitchMeshes/MayaFiles/stitch1.mb\";");
+				MGlobal::executeCommand(importCmd);
+				SubFace subface = MSubFaces[i];
+				outputFaceIter.setIndex(subface.faceId-inputMeshFn->numPolygons(), p);
+				outputFaceIter.getNormal(normal);
+				MVector axis = stitchNormal ^ normal;
+				float angle = acos(stitchNormal * normal);
+				MEulerRotation euler(0.0,0.0,0.0);
+				euler.incrementalRotateBy(axis, angle);
+				double rotX = euler.x * 180.0 / M_PI;
+				double rotY = euler.y * 180.0 / M_PI;
+				double rotZ = euler.z * 180.0 / M_PI;
+				MString rotXcmd = MString("setAttr ") + stitchName + MString(".rotateX ") + rotX;
+				MString rotYcmd = MString("setAttr ") + stitchName + MString(".rotateY ") + rotY;
+				MString rotZcmd = MString("setAttr ") + stitchName + MString(".rotateZ ") + rotZ;
+				MGlobal::executeCommand(rotXcmd);
+				MGlobal::executeCommand(rotYcmd);
+				MGlobal::executeCommand(rotZcmd);
+				MPoint center = outputFaceIter.center();
+				MGlobal::executeCommand("select " + stitchName);
+				MString moveCmd = MString("move ") + center.x + " " + center.y + " " + center.z;
+				MGlobal::executeCommand(moveCmd);
+				double courseScale = (subface.fwrdPoints[0] - subface.bkwdPoints[0]).length();
+				double waleScale = (subface.fwrdPoints[subface.fwrdPoints.length()-1] - subface.fwrdPoints[0]).length();
+				MString scaleCmd = MString("scale ") + waleScale + " " + waleScale*2.0 + " " + courseScale;
+				MGlobal::executeCommand(scaleCmd);
+				MSelectionList selected;
+				MGlobal::getActiveSelectionList(selected);
+				MDagPath dagPath;
+				selected.getDagPath(0,dagPath);
+				MFnTransform stitchTransform(dagPath);
+				while (true) {
+					MMatrix matrix = stitchTransform.transformationMatrix();
+					MVector localZ = MVector(0,0,-1) * matrix; localZ.normalize();
+					angle = acos(MVector(0,1,0) * localZ);
+					if (angle < 1.0e-4) break;
+					euler.incrementalRotateBy(normal, angle);
+					rotX = euler.x * 180.0 / M_PI;
+					rotY = euler.y * 180.0 / M_PI;
+					rotZ = euler.z * 180.0 / M_PI;
+					rotXcmd = MString("setAttr ") + stitchName + MString(".rotateX ") + rotX;
+					rotYcmd = MString("setAttr ") + stitchName + MString(".rotateY ") + rotY;
+					rotZcmd = MString("setAttr ") + stitchName + MString(".rotateZ ") + rotZ;
+					MGlobal::executeCommand(rotXcmd);
+					MGlobal::executeCommand(rotYcmd);
+					MGlobal::executeCommand(rotZcmd);
+					MGlobal::executeCommand(MString("hide ") + outputShapeName);
+				}
 			}
 			
 			// clear selection

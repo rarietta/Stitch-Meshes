@@ -2,6 +2,7 @@
 // SitchMeshNode.h
 // ==========================================================================
 
+#include <string>
 #include <maya/MGlobal.h>
 #include <maya/MTime.h>
 #include <maya/MFnMesh.h>
@@ -15,6 +16,7 @@
 #include <maya/MFnTypedAttribute.h>
 #include <maya/MFnStringData.h>
 
+#include <maya/MMatrix.h>
 #include <maya/MPxNode.h>
 #include <maya/MObject.h>
 #include <maya/MPlug.h>
@@ -26,17 +28,19 @@
 #include <maya/MPointArray.h>
 #include <maya/MEventMessage.h>
 #include <maya/MSceneMessage.h>
+#include <maya/MEulerRotation.h>
 
 #include <maya/MIOStream.h>
 #include "PolyMeshFace.h"
 #include "SubFace.h"
+#include "Stitch.h"
 #include <vector>
 #include <stdio.h>
 #include <string.h>
 
 using namespace std;
 
-enum {LOOP_SELECTION, TESSELLATION, STITCH_EDITING};
+enum {LOOP_SELECTION, TESSELLATION, STITCH_EDITING, YARN_GENERATION};
 typedef vector<PolyMeshFace> PolyMeshFaceLoop;
 
 class StitchMeshNode : public MPxNode
@@ -68,9 +72,11 @@ public:
 	//----------------------------------------------------------------------//
 
 	static MObject	inputMesh;
+	static MObject	outputMesh;
+	static MObject	inputMeshName;
+	static MObject	outputMeshName;
 	static MObject	nodeStage;
 	static MObject	stitchSize;
-	static MObject	outputMesh;
 	static MTypeId	id;
 
 	//----------------------------------------------------------------------//
@@ -86,7 +92,7 @@ protected:
 
 	// get the currently selected edge
 	//int getSelectedEdge(MItMeshEdge &edgeIt);
-	static bool getSelectedEdge(MString &meshShapeName, int &index);
+	static bool getSelectedEdge(int &index);
 
 	// function for selecting/defining stitch face loops
 	MStatus defineStitchLoops(void);

@@ -22,3 +22,15 @@ sets -add initialShadingGroup $nodeShape;
 $node = `createNode StitchMeshNode -n StitchMeshNode`;
 connectAttr ($inputMesh + ".outMesh") ($node + ".inputMesh");
 connectAttr ($node + ".outputMesh") ($nodeShape + ".inMesh");
+
+
+//----------------------------------------------------------------------//
+// DEBUG -- WILL BE USED FOR STORING NAMES OF INPUT/OUTPUT SHAPES		//
+//----------------------------------------------------------------------//
+
+print ("inputMesh = " + $inputMesh + " \n");
+print ("nodeShape = " + $nodeShape + " \n");
+setAttr ($node + ".inputMeshName") -type "string" $inputMesh;
+setAttr ($node + ".outputMeshName") -type "string" $nodeShape;
+setAttr -lock on ($node + ".inputMeshName");
+setAttr -lock on ($node + ".outputMeshName");

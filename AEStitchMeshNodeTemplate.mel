@@ -6,15 +6,17 @@ global proc AELoopSelectionBuild (string $nodeNameArr) {
 	string $nodeName = $buffer[0];
 
 	// add buttons
-	string $cmd = "setAttr " + $nodeName + ".nodeStage 1; \
-				   hide pCylinder1; showHidden StitchMeshShape; \
-				   editorTemplate -dimControl " + $nodeName + " stitchSize false; \
-				   button -e -enable true CommitTessellationButton; \
-				   button -e -enable true ReturnTessellationButton; \
-				   button -e -enable false CommitLoopButton; \
-				   button -e -enable false ReturnLoopButton;";
-	button -label "Commit Stitch Loop Selection" -c $cmd CommitLoopButton;
-	button -label "Clear Stitch Loop Selection" ReturnLoopButton;
+	string $commitCmd = "setAttr " + $nodeName + ".nodeStage 1; \
+						 hide pCylinder1; showHidden StitchMeshShape; \
+						 editorTemplate -dimControl " + $nodeName + " stitchSize false; \
+						 button -e -enable true CommitTessellationButton; \
+						 button -e -enable true ReturnTessellationButton; \
+						 button -e -enable false CommitLoopButton; \
+						 button -e -enable false ReturnLoopButton;";
+	string $clearCmd = "select " + $nodeName + ".inputMesh; \
+						polyColorPerVertex -remove;";
+	button -label "Commit Stitch Loop Selection" -c $commitCmd CommitLoopButton;
+	button -label "Clear Stitch Loop Selection" -c $clearCmd ReturnLoopButton;
 }
 
 global proc AELoopSelectionUpdate (string $nodeNameArr) {
@@ -114,7 +116,10 @@ global proc AEStitchEditBuild (string $nodeNameArr) {
 	string $buffer[];
 	tokenize($nodeNameArr,".",$buffer);
 	string $nodeName = $buffer[0];
-
+	
+	string $commitCmd = "setAttr " + $nodeName + ".nodeStage 3; \
+					     button -e -enable false CommitEditButton; \
+					     button -e -enable false ReturnEditButton;";
 	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 1; \
 						 button -e -enable true CommitTessellationButton; \
 					     button -e -enable true ReturnTessellationButton; \
@@ -123,7 +128,7 @@ global proc AEStitchEditBuild (string $nodeNameArr) {
 						 editorTemplate -dimControl " + $nodeName + " stitchSize false; \
 						 hide pCylinder1; showHidden StitchMeshShape;";
 
-	button -label "Commit Stitch Edits and Relax" -enable false CommitEditButton;
+	button -label "Commit Edits, Relax, & Generate Yarns" -enable false -c $commitCmd CommitEditButton;
 	button -label "Clear Edits and Return to Tessellation" -enable false -c $returnCmd ReturnEditButton;
 }
 
@@ -168,6 +173,8 @@ global proc AEStitchMeshNodeTemplate( string $nodeName ) {
 	editorTemplate -suppress "nodeStage";
 	editorTemplate -suppress "caching";
 	editorTemplate -suppress "nodeState";
+	editorTemplate -suppress "inputMeshName";
+	editorTemplate -suppress "outputMeshName";
 
 	//--------------------------------------------------------------------------------------------------------------//
 	// edge loop selection stage
