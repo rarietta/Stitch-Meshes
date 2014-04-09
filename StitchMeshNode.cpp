@@ -294,6 +294,130 @@ void* StitchMeshNode::creator()
 	node->inputMeshFn = NULL;
 	node->inputMeshItEdges = NULL;
 	node->inputMeshItFaces = NULL;
+
+	
+	//----------------------------------------------------------------------------------------------------------//
+	// Create hard-coded stitch library																			//
+	// This will STAY hardcoded since this data is not variable													//
+	//----------------------------------------------------------------------------------------------------------//
+	
+	// create cage vertices for stitch "p"
+	MPointArray p_cage;
+	p_cage.append(-0.5, 0.0, -0.5);
+	p_cage.append(-0.5, 0.0,  0.5);
+	p_cage.append( 0.5, 0.0,  0.5);
+	p_cage.append( 0.5, 0.0, -0.5);
+
+	// create stitch "p" from cage
+	Stitch p_stitch(p_cage);
+
+	// create each of p_stitch's 3 yarns
+	YarnCurve p_curve0(p_cage);
+	p_curve0.addCV( 0.500000000,  0.00000000, -0.167040);
+	p_curve0.addCV( 0.500000000,  0.00000000, -0.167040);
+	p_curve0.addCV( 0.207771000, -0.03185650, -0.152330);
+	p_curve0.addCV( 0.207771000, -0.03185650, -0.152330);
+	p_curve0.addCV( 0.207771000, -0.03185650, -0.152330);
+	p_curve0.addCV( 0.129589000, -0.07489700, -0.147368);
+	p_curve0.addCV( 0.129589000, -0.07489700, -0.147368);
+	p_curve0.addCV( 0.129589000, -0.07489700, -0.147368);
+	p_curve0.addCV( 0.049043700, -0.04998820, -0.136713);
+	p_curve0.addCV( 0.024515900, -0.02760550, -0.153349);
+	p_curve0.addCV(-1.1953e-005, -0.00522291, -0.169985);
+	p_curve0.addCV( 0.002880830,  0.01795180, -0.207600);
+	p_curve0.addCV( 0.002880830,  0.01795180, -0.207600);
+	p_curve0.addCV( 0.002880830,  0.01795180, -0.207600);
+	p_curve0.addCV( 0.002350680,  0.07519160, -0.258189);
+	p_curve0.addCV( 0.000817694,  0.07519160, -0.278117);
+	p_curve0.addCV(-0.000715295,  0.07519160, -0.298046);
+	p_curve0.addCV(-0.003781270,  0.03121760, -0.360899);
+	p_curve0.addCV(-0.003781270,  0.03121760, -0.360899);
+	p_curve0.addCV(-0.003781270,  0.03121760, -0.360899);
+	p_curve0.addCV(-0.000000000,  0.00000000, -0.500000);
+	p_curve0.addCV(-0.000000000,  0.00000000, -0.500000);
+	p_curve0.addKnot(0); p_curve0.addKnot(0); p_curve0.addKnot(0);
+	p_curve0.addKnot(1); p_curve0.addKnot(1); p_curve0.addKnot(1);
+	p_curve0.addKnot(2); p_curve0.addKnot(2); p_curve0.addKnot(2);
+	p_curve0.addKnot(3); p_curve0.addKnot(3); p_curve0.addKnot(3);
+	p_curve0.addKnot(4); p_curve0.addKnot(4); p_curve0.addKnot(4);
+	p_curve0.addKnot(5); p_curve0.addKnot(5); p_curve0.addKnot(5);
+	p_curve0.addKnot(6); p_curve0.addKnot(6); p_curve0.addKnot(6);
+	p_curve0.addKnot(7); p_curve0.addKnot(7); p_curve0.addKnot(7);
+	p_stitch.addYarnCurve(p_curve0);
+	
+	YarnCurve p_curve1(p_cage);
+	p_curve1.addCV( 0.5000000000,  0.00000000, 0.167040);
+	p_curve1.addCV( 0.5000000000,  0.00000000, 0.167040);
+	p_curve1.addCV( 0.2077710000, -0.03185650, 0.152329);
+	p_curve1.addCV( 0.2077710000, -0.03185650, 0.152329);
+	p_curve1.addCV( 0.2077710000, -0.03185650, 0.152329);
+	p_curve1.addCV( 0.1295890000, -0.07489700, 0.147368);
+	p_curve1.addCV( 0.1295890000, -0.07489700, 0.147368);
+	p_curve1.addCV( 0.1295890000, -0.07489700, 0.147368);
+	p_curve1.addCV( 0.0490437000, -0.04998820, 0.136713);
+	p_curve1.addCV( 0.0245159000, -0.02760550, 0.153349);
+	p_curve1.addCV(-1.19531e-005, -0.00522291, 0.169985);
+	p_curve1.addCV( 0.0028808300,  0.01795180, 0.207600);
+	p_curve1.addCV( 0.0028808300,  0.01795180, 0.207600);
+	p_curve1.addCV( 0.0028808300,  0.01795180, 0.207600);
+	p_curve1.addCV( 0.0023506800,  0.07519160, 0.258188);
+	p_curve1.addCV( 0.0008176940,  0.07519160, 0.278117);
+	p_curve1.addCV(-0.0007152950,  0.07519160, 0.298046);
+	p_curve1.addCV(-0.0037812700,  0.03121760, 0.360898);
+	p_curve1.addCV(-0.0037812700,  0.03121760, 0.360898);
+	p_curve1.addCV(-0.0037812700,  0.03121760, 0.360898);
+	p_curve1.addCV(-0.0000000000,  0.00000000, 0.500000);
+	p_curve1.addCV(-0.0000000000,  0.00000000, 0.500000);
+	p_curve1.addKnot(0); p_curve1.addKnot(0); p_curve1.addKnot(0);
+	p_curve1.addKnot(1); p_curve1.addKnot(1); p_curve1.addKnot(1);
+	p_curve1.addKnot(2); p_curve1.addKnot(2); p_curve1.addKnot(2);
+	p_curve1.addKnot(3); p_curve1.addKnot(3); p_curve1.addKnot(3);
+	p_curve1.addKnot(4); p_curve1.addKnot(4); p_curve1.addKnot(4);
+	p_curve1.addKnot(5); p_curve1.addKnot(5); p_curve1.addKnot(5);
+	p_curve1.addKnot(6); p_curve1.addKnot(6); p_curve1.addKnot(6);
+	p_curve1.addKnot(7); p_curve1.addKnot(7); p_curve1.addKnot(7);
+	p_stitch.addYarnCurve(p_curve1);
+	
+	YarnCurve p_curve2(p_cage);
+	p_curve2.addCV(-0.500000, 0.00, -0.16715500);
+	p_curve2.addCV(-0.500000, 0.00, -0.16715500);
+	p_curve2.addCV(-0.337119, 0.00, -0.15809600);
+	p_curve2.addCV(-0.258357, 0.00, -0.25074600);
+	p_curve2.addCV(-0.179595, 0.00, -0.34339600);
+	p_curve2.addCV( 0.163595, 0.00, -0.35230100);
+	p_curve2.addCV( 0.161119, 0.00,  0.00181916);
+	p_curve2.addCV( 0.158643, 0.00,  0.35593900);
+	p_curve2.addCV(-0.192924, 0.00,  0.30888800);
+	p_curve2.addCV(-0.257387, 0.00,  0.24945600);
+	p_curve2.addCV(-0.321850, 0.00,  0.19002300);
+	p_curve2.addCV(-0.351489, 0.00,  0.16670800);
+	p_curve2.addCV(-0.500000, 0.00,  0.16773600);
+	p_curve2.addKnot(0); p_curve2.addKnot(0); p_curve2.addKnot(0);
+	p_curve2.addKnot(1); p_curve2.addKnot(1); p_curve2.addKnot(1);
+	p_curve2.addKnot(2); p_curve2.addKnot(2); p_curve2.addKnot(2);
+	p_curve2.addKnot(3); p_curve2.addKnot(3); p_curve2.addKnot(3);
+	p_curve2.addKnot(4); p_curve2.addKnot(4); p_curve2.addKnot(4);
+	p_stitch.addYarnCurve(p_curve2);
+
+	// debug test
+	for (int i = 0; i < p_stitch.YarnCurves.size(); i++)
+	{
+		cout << "YarnCurve " << i << ":" << endl;
+		YarnCurve yc = p_stitch.YarnCurves[i];
+		for (int j = 0; j < yc.CVweights.size(); j++)
+		{
+			cout << "\tcv " << j << " weights: ";
+			MVCWeights weights = yc.CVweights[j];
+			for (int k = 0; k < weights.length(); k++)
+			{
+				cout << weights[k] << ", ";
+			}
+			cout << endl; 
+			cout << "\tcv " << j << " offset: " << yc.CVoffsets[j] << endl;
+		}
+	} node->stitches.push_back(p_stitch);
+	
+	// end
 	return node;
 }
 
@@ -376,18 +500,6 @@ MStatus StitchMeshNode::initialize()
 	returnStatus = attributeAffects(StitchMeshNode::stitchSize, StitchMeshNode::outputMesh);
 	McheckErr(returnStatus, "ERROR in attributeAffects\n");
 	
-	//----------------------------------------------------------------------------------------------------------//
-	// Create hard-coded stitch library																			//
-	// This will STAY hardcoded since this data is not variable													//
-	//----------------------------------------------------------------------------------------------------------//
-	/*
-	Stitch stitch1(;
-	YarnCurve curve1;
-	curve1.
-	YarnCurve curve2;
-	YarnCurve curve3;
-	stitch1.addYarnCurve(curve1);
-	*/
 	//----------------------------------------------------------------------------------------------------------//
 	// Return successful initialization															                //
 	//----------------------------------------------------------------------------------------------------------//
@@ -875,6 +987,62 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 			//----------------------------------------------------------------------------------------------------------//
 			// Replace tessellated faces with stitch models																//
 			//----------------------------------------------------------------------------------------------------------//
+			
+			for (int i = 0; i < MSubFaces.size(); i++)
+			{
+				int p;
+				MItMeshPolygon outputFaceIter(outputMeshShape);
+				MPointArray subfaceCage;
+				SubFace subface = MSubFaces[i];
+
+				// TODO: determine correct stitch type based on
+				//		 number of fwrd and bkwd course edges
+				Stitch stitch;
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[P];
+				/*if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[PY];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[YKY];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[KPK];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[D312P];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[K1Y];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[S];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[SK];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[X];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[Y1];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[K];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[KP];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[D12K];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[KYK];
+				if (subface.nBkwd == 2 && subface.nFwrd == 2) stitch = stitches[D123K];*/
+
+				// create face specific cage from subface vertices
+				for (int j = 0; j < subface.nBkwd; j++)
+					subfaceCage.append(subface.bkwdPoints[j]);
+				for (int j = subface.nFwrd-1; j >= 0; j--)
+					subfaceCage.append(subface.fwrdPoints[j]);
+
+				// build all yarns
+				for (int j = 0; j < stitch.YarnCurves.size(); j++)
+				{
+					YarnCurve yc = stitch.YarnCurves[j];
+					MString curveCmd = "curve -bezier ";
+					for (int k = 0; k < yc.CVweights.size(); k++)
+					{
+						MPoint cv_k(0,0,0);
+						MVCWeights weights_k = yc.CVweights[k];
+						for (int q = 0; q < weights_k.length(); q++)
+							cv_k += weights_k[q] * MVector(subfaceCage[q]);
+						MVector subfaceNormal;
+						outputFaceIter.setIndex(subface.faceId-inputMeshFn->numPolygons(), p);
+						outputFaceIter.getNormal(subfaceNormal);
+						cv_k += yc.CVoffsets[k] * subfaceNormal;
+						curveCmd += MString("-p ") + cv_k.x + " " + cv_k.y + " " + cv_k.z + " ";
+					}
+					for (int k = 0; k < yc.knotVector.size(); k++)
+						curveCmd += MString("-k ") + yc.knotVector[k] + " ";
+					MGlobal::executeCommand(curveCmd);
+				}
+			}
+			/*
 			for (int i = 0; i < MSubFaces.size(); i++)
 			{
 				int p;
@@ -907,7 +1075,7 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 				MGlobal::executeCommand(moveCmd);
 				double courseScale = (subface.fwrdPoints[0] - subface.bkwdPoints[0]).length();
 				double waleScale = (subface.fwrdPoints[subface.fwrdPoints.length()-1] - subface.fwrdPoints[0]).length();
-				MString scaleCmd = MString("scale ") + waleScale + " " + waleScale*2.0 + " " + courseScale;
+				MString scaleCmd = MString("scale ") + courseScale + " " + waleScale*2.0 + " " + waleScale;
 				MGlobal::executeCommand(scaleCmd);
 				MSelectionList selected;
 				MGlobal::getActiveSelectionList(selected);
@@ -916,7 +1084,7 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 				MFnTransform stitchTransform(dagPath);
 				while (true) {
 					MMatrix matrix = stitchTransform.transformationMatrix();
-					MVector localZ = MVector(0,0,-1) * matrix; localZ.normalize();
+					MVector localZ = MVector(1,0,0) * matrix; localZ.normalize();
 					angle = acos(MVector(0,1,0) * localZ);
 					if (angle < 1.0e-4) break;
 					euler.incrementalRotateBy(normal, angle);
@@ -929,11 +1097,11 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 					MGlobal::executeCommand(rotXcmd);
 					MGlobal::executeCommand(rotYcmd);
 					MGlobal::executeCommand(rotZcmd);
-					MGlobal::executeCommand(MString("hide ") + outputShapeName);
 				}
-			}
+			}*/
 			
 			// clear selection
+			MGlobal::executeCommand(MString("hide ") + outputShapeName);
 			MGlobal::executeCommand("select " + this->name());
 			break;
 

@@ -1,22 +1,33 @@
 #include "Stitch.h"
 
+//----------------------------------------------------------------------//
+// YarnCurve class function definitions									//
+//----------------------------------------------------------------------//
+
 YarnCurve::~YarnCurve(void)
 {
 }
 
 YarnCurve::YarnCurve(void)
 {
+	cageVertices.clear();
+	knotVector.clear();
+	CVoffsets.clear();
+	CVweights.clear();
 }
 
 YarnCurve::YarnCurve(MPointArray corners)
 {
-	cageVertices = corners;
+	cageVertices.copy(corners);
+	knotVector.clear();
+	CVoffsets.clear();
+	CVweights.clear();
 }
 
 MStatus
 YarnCurve::addCV(MPoint cv)
 {
-	return MStatus::kSuccess;
+	return addCV(cv.x, cv.y, cv.z);
 }
 
 MStatus
@@ -26,6 +37,7 @@ YarnCurve::addCV(float cvX, float cvY, float cvZ)
 
 	// create new set of MVC weights for CV
 	MVCWeights weights;
+	float totalWeight = 0.0;
 
 	// go through each corner of base stitch model
 	// to calculate corner-specific MVC weights
@@ -54,7 +66,12 @@ YarnCurve::addCV(float cvX, float cvY, float cvZ)
 
 		// append weight_i to list of CV's MVC weights
 		weights.append(weight_i);
+		totalWeight += weight_i;
 	}
+
+	// normalize weights
+	for (int i = 0; i < weights.length(); i++)
+		weights[i] = weights[i] / totalWeight;
 
 	// add CV to curve
 	CVweights.push_back(weights);
@@ -64,10 +81,36 @@ YarnCurve::addCV(float cvX, float cvY, float cvZ)
 	return MStatus::kSuccess;
 }
 
+MStatus
+YarnCurve::addKnot(int k)
+{
+	knotVector.push_back(k);
+	return MStatus::kSuccess;
+}
+
+//----------------------------------------------------------------------//
+// Stitch class function definitions									//
+//----------------------------------------------------------------------//
+
+Stitch::Stitch(void)
+{
+	cageVertices.clear();
+	YarnCurves.clear();
+}
+
+Stitch::Stitch(MPointArray corners)
+{
+	cageVertices.copy(corners);
+	YarnCurves.clear();
+}
+
 Stitch::~Stitch(void)
 {
 }
 
-Stitch::Stitch(void)
+MStatus
+Stitch::addYarnCurve(YarnCurve y)
 {
+	YarnCurves.push_back(y);
+	return MStatus::kSuccess;
 }

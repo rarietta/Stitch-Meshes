@@ -1,23 +1,47 @@
+
+//======================================================================================================================//
+// Loop Selection Build Function																						//
+//======================================================================================================================//
+
 global proc AELoopSelectionBuild (string $nodeNameArr) {
 	
 	// get node name
 	string $buffer[];
 	tokenize($nodeNameArr,".",$buffer);
 	string $nodeName = $buffer[0];
+	
+	frameLayout -marginHeight 5 -marginWidth 5 -collapsable 0 -labelVisible 0 -enable true LoopSelectionFrame;
 
-	// add buttons
+		//--------------------------------------------------------------------------------------------------------------//
+		// User instructions / description																				//
+		//--------------------------------------------------------------------------------------------------------------//
+
+		separator -style none;
+		text -l "To specify the stitch direction of your mesh, first select a boundary";
+		text -l "edge loop at which to begin the knitting. Then, select contiguous edge";
+		text -l "loops in sequence, or start knitting again from another boundary.";
+		separator -style none;
+
+	//------------------------------------------------------------------------------------------------------------------//
+	// Attribute controls and buttons																					//
+	//------------------------------------------------------------------------------------------------------------------//
+
 	string $commitCmd = "setAttr " + $nodeName + ".nodeStage 1; \
-						 hide pCylinder1; showHidden StitchMeshShape; \
-						 editorTemplate -dimControl " + $nodeName + " stitchSize false; \
-						 button -e -enable true CommitTessellationButton; \
-						 button -e -enable true ReturnTessellationButton; \
-						 button -e -enable false CommitLoopButton; \
-						 button -e -enable false ReturnLoopButton;";
+							hide pCylinder1; showHidden StitchMeshShape; \
+							editorTemplate -dimControl " + $nodeName + " stitchSize false; \
+							button -e -enable true CommitTessellationButton; \
+							button -e -enable true ReturnTessellationButton; \
+							button -e -enable false CommitLoopButton; \
+							button -e -enable false ReturnLoopButton;";
 	string $clearCmd = "select " + $nodeName + ".inputMesh; \
 						polyColorPerVertex -remove;";
 	button -label "Commit Stitch Loop Selection" -c $commitCmd CommitLoopButton;
 	button -label "Clear Stitch Loop Selection" -c $clearCmd ReturnLoopButton;
 }
+
+//======================================================================================================================//
+// Loop Selection Update Function																						//
+//======================================================================================================================//
 
 global proc AELoopSelectionUpdate (string $nodeNameArr) {
 
@@ -31,9 +55,11 @@ global proc AELoopSelectionUpdate (string $nodeNameArr) {
 	if ($stage == 0) {
 		button -e -enable true CommitLoopButton;
 		button -e -enable true ReturnLoopButton;
+		frameLayout -e -enable true LoopSelectionFrame;
 	} else {
 		button -e -enable false CommitLoopButton;
 		button -e -enable false ReturnLoopButton;
+		frameLayout -e -enable false LoopSelectionFrame;
 	}
 
 	// add buttons
@@ -47,6 +73,10 @@ global proc AELoopSelectionUpdate (string $nodeNameArr) {
 	button -e -c $cmd CommitLoopButton;
 }
 
+//======================================================================================================================//
+// Tessellation Build Function																							//
+//======================================================================================================================//
+
 global proc AETessellationBuild (string $nodeNameArr) {
 
 	// get node name
@@ -54,7 +84,11 @@ global proc AETessellationBuild (string $nodeNameArr) {
 	tokenize($nodeNameArr,".",$buffer);
 	string $nodeName = $buffer[0];
 
-	// add  buttons
+	//------------------------------------------------------------------------------------------------------------------//
+	// Attribute controls and buttons																					//
+	//------------------------------------------------------------------------------------------------------------------//
+	
+	//text -l "This slider controls the average stitch size of the knitted output.";
 	editorTemplate -dimControl $nodeName stitchSize true;
 	string $commitCmd = "setAttr " + $nodeName + ".nodeStage 2; \
 						 editorTemplate -dimControl " + $nodeName + " stitchSize true; \
@@ -72,6 +106,10 @@ global proc AETessellationBuild (string $nodeNameArr) {
 	button -label "Commit and Edit Stitch Mesh"   -enable false -c $commitCmd CommitTessellationButton;
 	button -label "Return to Edge Loop Selection" -enable false -c $returnCmd ReturnTessellationButton;
 }
+
+//======================================================================================================================//
+// Tessellation Update Function																							//
+//======================================================================================================================//
 
 global proc AETessellationUpdate (string $nodeNameArr) {
 
@@ -110,6 +148,10 @@ global proc AETessellationUpdate (string $nodeNameArr) {
 	button -e -c $returnCmd ReturnTessellationButton;
 }	
 
+//======================================================================================================================//
+// Stitch Editing Build Function																						//
+//======================================================================================================================//
+
 global proc AEStitchEditBuild (string $nodeNameArr) {
 
 	// get node name
@@ -128,9 +170,117 @@ global proc AEStitchEditBuild (string $nodeNameArr) {
 						 editorTemplate -dimControl " + $nodeName + " stitchSize false; \
 						 hide pCylinder1; showHidden StitchMeshShape;";
 
-	button -label "Commit Edits, Relax, & Generate Yarns" -enable false -c $commitCmd CommitEditButton;
+	//------------------------------------------------------------------------------------------------------------------//
+	// Upper Level Stitch Editing Frame   																				//
+	//------------------------------------------------------------------------------------------------------------------//
+
+	string $path = "C:/Users/Richard/Documents/_Academics/Penn/02_S2014/CIS_660/AuthoringTool/StitchMeshes/icons/";
+	frameLayout -marginHeight 5 -marginWidth 5 -collapsable 0 -labelVisible 0 -enable false StitchLevelEditing;
+
+		//--------------------------------------------------------------------------------------------------------------//
+		// Description/Instructions																						//
+		//--------------------------------------------------------------------------------------------------------------//
+		separator -style none;
+		text -l "To perform stitch level editing, select the desired edge(s)";
+		text -l "or face(s) from the tessellated mesh and choose the appropriate";
+		text -l "tool button from the options below.";
+		separator -style none;
+
+		//--------------------------------------------------------------------------------------------------------------//
+		// Select Stitch Type            																				//
+		//--------------------------------------------------------------------------------------------------------------//
+
+		frameLayout -label "Stitch Types" -marginHeight 10 -marginWidth 20 -collapsable 0 StitchTypes;
+			rowColumnLayout -numberOfColumns 4;
+				symbolButton -h 80 -w 80 -image ($path + "tri1big2.bmp") -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "tri2big2.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "sq1big2.bmp")  -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "sq2big2.bmp")  -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "sq3big2.bmp")  -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "pt1big2.bmp")  -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "pt2big2.bmp")  -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "pt3big2.bmp")  -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "pt4big2.bmp")  -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "pt5big2.bmp")  -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "hex1big2.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "hex2big2.bmp") -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "hex3big2.bmp") -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "hex4big2.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "hex5big2.bmp") -command "polyCube";
+			setParent ..;
+			button -l "Apply to Faces";
+		setParent ..;
+
+		//--------------------------------------------------------------------------------------------------------------//
+		// Set Cable Edges   																							//
+		//--------------------------------------------------------------------------------------------------------------//
+
+		frameLayout -label "Set Cable Edges" -marginHeight 10 -marginWidth 10 -collapsable 0 CableEdges;
+			columnLayout -columnWidth 200;
+				button -l "Set Edges";
+			setParent ..;
+		setParent ..;
+
+		//--------------------------------------------------------------------------------------------------------------//
+		// Split/Collapse Edges  																						//
+		//--------------------------------------------------------------------------------------------------------------//
+
+		frameLayout -label "Split or Collapse Edges" -marginHeight 10 -marginWidth 10 -collapsable 0 SplitCollapseEdges;
+			rowColumnLayout -numberOfRows 1;
+				button -l "Split Edges";
+				button -l "Collapse Edges";
+			setParent ..;
+		setParent ..;
+
+		//--------------------------------------------------------------------------------------------------------------//
+		// Add/Remove/Shift Edges  																						//
+		//--------------------------------------------------------------------------------------------------------------//
+
+		frameLayout -label "Add, Remove or Shift Edges" -marginHeight 10 -marginWidth 10 -collapsable 0 AddRemoveShiftEdges;
+			rowColumnLayout -numberOfRows 1;
+				button -l "Add Edges";
+				button -l "Remove Edges";
+				button -l "Shift Edges";
+			setParent ..;
+		setParent ..;
+
+		//--------------------------------------------------------------------------------------------------------------//
+		// Pattern Style	  																							//
+		//--------------------------------------------------------------------------------------------------------------//
+
+		frameLayout -label "Pattern Style" -marginHeight 10 -marginWidth 10 -collapsable 0 PatternStyle;
+			rowColumnLayout -numberOfColumns 4;
+				symbolButton -h 80 -w 80 -image ($path + "MM1b.bmp") -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "MM2b.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "MM3b.bmp") -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "OT1b.bmp") -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "OT2b.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "OT3b.bmp") -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "RF1b.bmp") -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "RF2b.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "RF3b.bmp") -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "FR1b.bmp") -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "FR2b.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "FR3b.bmp") -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "BC1b.bmp") -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "BC2b.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "BC3b.bmp") -command "polyCube";
+				symbolButton -h 80 -w 80 -image ($path + "CW1b.bmp") -command "circle";
+				symbolButton -h 80 -w 80 -image ($path + "CW2b.bmp") -command "sphere";
+				symbolButton -h 80 -w 80 -image ($path + "CW3b.bmp") -command "polyCube";
+			setParent ..;
+			button -l "Generate";
+		setParent ..;
+
+	button -label "Commit Edits, Relax, and Generate Yarns" -enable false -c $commitCmd CommitEditButton;
 	button -label "Clear Edits and Return to Tessellation" -enable false -c $returnCmd ReturnEditButton;
+
+	setParent ..;
 }
+
+//======================================================================================================================//
+// Stitch Editing Update Function																						//
+//======================================================================================================================//
 
 global proc AEStitchEditUpdate (string $nodeNameArr) {
 
@@ -144,9 +294,11 @@ global proc AEStitchEditUpdate (string $nodeNameArr) {
 	if ($stage == 2) {
 		button -e -enable true CommitEditButton;
 		button -e -enable true ReturnEditButton;
+		frameLayout -e -enable true StitchLevelEditing;
 	} else {
 		button -e -enable false CommitEditButton; 
 		button -e -enable false ReturnEditButton;
+		frameLayout -e -enable false StitchLevelEditing;
 	}
 	
 	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 1; \
@@ -161,9 +313,9 @@ global proc AEStitchEditUpdate (string $nodeNameArr) {
 }
 		
 
-//------------------------------------------------------------------------------------------------------------------//
-// MAIN AETEMPLATE FUNCTION
-//------------------------------------------------------------------------------------------------------------------//
+//======================================================================================================================//
+// MAIN AETEMPLATE FUNCTION																								//
+//======================================================================================================================//
 
 global proc AEStitchMeshNodeTemplate( string $nodeName ) {
 
@@ -189,8 +341,6 @@ global proc AEStitchMeshNodeTemplate( string $nodeName ) {
 	//--------------------------------------------------------------------------------------------------------------//
 	editorTemplate -beginLayout "Tessellation" -collapse false;
 		editorTemplate -addControl "stitchSize";
-		print ("nodeName = " + $nodeName);
-		editorTemplate -dimControl $nodeName "stitchSize" 1;
 		editorTemplate -callCustom "AETessellationBuild" "AETessellationUpdate" $nodeName;
 	editorTemplate -endLayout;
 	editorTemplate -addSeparator;

@@ -22,7 +22,8 @@ public:
 				YarnCurve();
 				YarnCurve(MPointArray corners);
 	virtual	   ~YarnCurve();
-
+	
+	MStatus		addKnot(int k);
 	MStatus		addCV(MPoint cv);
 	MStatus		addCV(float cvX, float cvY, float cvZ);
 
@@ -36,9 +37,11 @@ class Stitch
 {
 public:
 				Stitch(void);
+				Stitch(MPointArray corners);
 	virtual	   ~Stitch();
 
 	MStatus		addYarnCurve(YarnCurve curve);
 
+	MPointArray cageVertices;
 	std::vector<YarnCurve> YarnCurves;
 };

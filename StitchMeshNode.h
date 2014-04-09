@@ -41,6 +41,7 @@
 using namespace std;
 
 enum {LOOP_SELECTION, TESSELLATION, STITCH_EDITING, YARN_GENERATION};
+enum {P, PY, YKY, KPK, D312P, K1Y, S, SK, X, Y1, K, KP, D12K, KYK, D123K};
 typedef vector<PolyMeshFace> PolyMeshFaceLoop;
 
 class StitchMeshNode : public MPxNode
@@ -87,6 +88,12 @@ public:
 	MCallbackId callbackId;
 	MIntArray faceLoopIndex;		// index of each face in its face loop
 	MIntArray faceLoopNumber;		// index of loop that each face is in
+
+	//----------------------------------------------------------------------//
+	// Library of stitch types												//
+	//----------------------------------------------------------------------//
+
+	std::vector<Stitch> stitches;
 
 protected:
 
