@@ -32,7 +32,8 @@ global proc AELoopSelectionBuild (string $nodeNameArr) {
 							button -e -enable true CommitTessellationButton; \
 							button -e -enable true ReturnTessellationButton; \
 							button -e -enable false CommitLoopButton; \
-							button -e -enable false ReturnLoopButton;";
+							button -e -enable false ReturnLoopButton; \
+							frameLayout -e -enable false LoopSelectionFrame;";
 	string $clearCmd = "select " + $nodeName + ".inputMesh; \
 						polyColorPerVertex -remove;";
 	button -label "Commit Stitch Loop Selection" -c $commitCmd CommitLoopButton;
@@ -69,7 +70,8 @@ global proc AELoopSelectionUpdate (string $nodeNameArr) {
 				   button -e -enable true CommitTessellationButton; \
 				   button -e -enable true ReturnTessellationButton; \
 				   button -e -enable false CommitLoopButton; \
-				   button -e -enable false ReturnLoopButton";
+				   button -e -enable false ReturnLoopButton; \
+				   frameLayout -e -enable false LoopSelectionFrame;";
 	button -e -c $cmd CommitLoopButton;
 }
 
@@ -95,6 +97,7 @@ global proc AETessellationBuild (string $nodeNameArr) {
 					     button -e -enable false CommitTessellationButton; \
 					     button -e -enable false ReturnTessellationButton; \
 					     button -e -enable true CommitEditButton; \
+						 frameLayout -e -enable true StitchLevelEditing; \
 					     button -e -enable true ReturnEditButton;";
 	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 0; \
 						 showHidden pCylinder1; hide StitchMeshShape; \
@@ -102,6 +105,7 @@ global proc AETessellationBuild (string $nodeNameArr) {
 						 button -e -enable false CommitTessellationButton; \
 					     button -e -enable false ReturnTessellationButton; \
 					     button -e -enable true CommitLoopButton; \
+						 frameLayout -e -enable true LoopSelectionFrame; \
 					     button -e -enable true ReturnLoopButton;";
 	button -label "Commit and Edit Stitch Mesh"   -enable false -c $commitCmd CommitTessellationButton;
 	button -label "Return to Edge Loop Selection" -enable false -c $returnCmd ReturnTessellationButton;
@@ -136,6 +140,7 @@ global proc AETessellationUpdate (string $nodeNameArr) {
 					     button -e -enable false ReturnTessellationButton; \
 					     button -e -enable true CommitEditButton; \
 					     button -e -enable true ReturnEditButton; \
+						 frameLayout -e -enable true StitchLevelEditing; \
 						 editorTemplate -dimControl " + $nodeName + " stitchSize true;";
 	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 0; \
 						 showHidden pCylinder1; hide StitchMeshShape; \
@@ -143,6 +148,7 @@ global proc AETessellationUpdate (string $nodeNameArr) {
 					     button -e -enable false ReturnTessellationButton; \
 					     button -e -enable true CommitLoopButton; \
 					     button -e -enable true ReturnLoopButton; \
+						 frameLayout -e -enable true LoopSelectionFrame; \
 						 editorTemplate -dimControl " + $nodeName + " stitchSize true;";
 	button -e -c $commitCmd CommitTessellationButton;
 	button -e -c $returnCmd ReturnTessellationButton;
@@ -160,9 +166,11 @@ global proc AEStitchEditBuild (string $nodeNameArr) {
 	string $nodeName = $buffer[0];
 	
 	string $commitCmd = "setAttr " + $nodeName + ".nodeStage 3; \
+						 frameLayout -e -enable false StitchLevelEditing; \
 					     button -e -enable false CommitEditButton; \
 					     button -e -enable false ReturnEditButton;";
 	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 1; \
+						 frameLayout -e -enable false StitchLevelEditing; \
 						 button -e -enable true CommitTessellationButton; \
 					     button -e -enable true ReturnTessellationButton; \
 					     button -e -enable false CommitEditButton; \
@@ -302,6 +310,7 @@ global proc AEStitchEditUpdate (string $nodeNameArr) {
 	}
 	
 	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 1; \
+						 frameLayout -e -enable false StitchLevelEditing; \
 						 button -e -enable true CommitTessellationButton; \
 					     button -e -enable true ReturnTessellationButton; \
 					     button -e -enable false CommitEditButton; \

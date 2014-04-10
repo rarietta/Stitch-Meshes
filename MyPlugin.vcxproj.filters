@@ -27,6 +27,9 @@
     <ClCompile Include="Stitch.cpp">
       <Filter>C++ Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StitchLevelEdits.cpp">
+      <Filter>C++ Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="matrix.h">
@@ -42,6 +45,9 @@
       <Filter>C++ Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PolyMeshFace.h">
+      <Filter>C++ Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StitchLevelEdits.h">
       <Filter>C++ Header Files</Filter>
     </ClInclude>
   </ItemGroup>

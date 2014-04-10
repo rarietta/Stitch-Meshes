@@ -573,12 +573,14 @@
     <ClCompile Include="PluginMain.cpp" />
     <ClCompile Include="PolyMeshFace.cpp" />
     <ClCompile Include="Stitch.cpp" />
+    <ClCompile Include="StitchLevelEdits.cpp" />
     <ClCompile Include="StitchMeshNode.cpp" />
     <ClCompile Include="SubFace.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PolyMeshFace.h" />
     <ClInclude Include="Stitch.h" />
+    <ClInclude Include="StitchLevelEdits.h" />
     <ClInclude Include="StitchMeshNode.h" />
     <ClInclude Include="matrix.h" />
     <ClInclude Include="SubFace.h" />

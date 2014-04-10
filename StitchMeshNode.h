@@ -1,42 +1,54 @@
-// ==========================================================================
-// SitchMeshNode.h
-// ==========================================================================
+//======================================================================================================================//
+//======================================================================================================================//
+// StitchMeshNode.cpp																									//
+//																														//
+// Ricky Arietta																										//
+// University of Pennsylvania																							//
+// CIS660 Spring 2014																									//
+//																														//
+// Create an StitchMesh from an input poly mesh.																		//
+//======================================================================================================================//
+//======================================================================================================================//
 
 #include <string>
-#include <maya/MGlobal.h>
-#include <maya/MTime.h>
-#include <maya/MFnMesh.h>
-#include <maya/MPoint.h>
-#include <maya/MFloatPoint.h>
-#include <maya/MFloatPointArray.h>
-#include <maya/MIntArray.h>
-#include <maya/MDoubleArray.h>
-#include <maya/MFnUnitAttribute.h>
-#include <maya/MFnNumericAttribute.h>
-#include <maya/MFnTypedAttribute.h>
-#include <maya/MFnStringData.h>
-
-#include <maya/MMatrix.h>
-#include <maya/MPxNode.h>
-#include <maya/MObject.h>
-#include <maya/MPlug.h>
-#include <maya/MDataBlock.h>
-#include <maya/MFnMeshData.h>
-#include <maya/MItMeshPolygon.h>
-#include <maya/MItMeshEdge.h>
-#include <maya/MFnMesh.h>
-#include <maya/MPointArray.h>
-#include <maya/MEventMessage.h>
-#include <maya/MSceneMessage.h>
-#include <maya/MEulerRotation.h>
-
-#include <maya/MIOStream.h>
-#include "PolyMeshFace.h"
-#include "SubFace.h"
-#include "Stitch.h"
 #include <vector>
 #include <stdio.h>
 #include <string.h>
+
+#include "Stitch.h"
+#include "SubFace.h"
+#include "PolyMeshFace.h"
+
+#include <maya/MTime.h>
+#include <maya/MPlug.h>
+#include <maya/MPoint.h>
+#include <maya/MGlobal.h>
+#include <maya/MFnMesh.h>
+#include <maya/MMatrix.h>
+#include <maya/MPxNode.h>
+#include <maya/MObject.h>
+#include <maya/MFnMesh.h>
+#include <maya/MDagPath.h>
+#include <maya/MIOStream.h>
+#include <maya/MIntArray.h>
+#include <maya/MDataBlock.h>
+#include <maya/MFloatPoint.h>
+#include <maya/MFnMeshData.h>
+#include <maya/MItMeshEdge.h>
+#include <maya/MPointArray.h>
+#include <maya/MFnTransform.h>
+#include <maya/MDoubleArray.h>
+#include <maya/MFnStringData.h>
+#include <maya/MEventMessage.h>
+#include <maya/MSceneMessage.h>
+#include <maya/MEulerRotation.h>
+#include <maya/MItMeshPolygon.h>
+#include <maya/MSelectionList.h>
+#include <maya/MItSelectionList.h>
+#include <maya/MFloatPointArray.h>
+#include <maya/MFnUnitAttribute.h>
+#include <maya/MFnTypedAttribute.h>
+#include <maya/MFnNumericAttribute.h>
 
 using namespace std;
 
@@ -56,29 +68,30 @@ public:
 	virtual 		~StitchMeshNode() {};
 	virtual MStatus compute(const MPlug& plug, MDataBlock& data);
 	static  void*	creator();
-	static MStatus initialize();
+	static MStatus	initialize();
 	
 	//----------------------------------------------------------------------//
 	// Class variables for stitch direction and tesselation					//
 	//----------------------------------------------------------------------//
 
-	MFnMesh* inputMeshFn;
-	MItMeshEdge *inputMeshItEdges;
-	MItMeshPolygon *inputMeshItFaces;
+	MFnMesh					*inputMeshFn;
+	MFnMesh					*oMeshFnShape;
+	MObject					 outputMeshObj;
+	MObject					 inputMeshObj;
 	vector<PolyMeshFaceLoop> MPolyMeshFaceLoops;
-	vector<SubFace> MSubFaces;
+	vector<SubFace>			 MSubFaces;
 
 	//----------------------------------------------------------------------//
 	// Node Attributes														//
 	//----------------------------------------------------------------------//
 
-	static MObject	inputMesh;
-	static MObject	outputMesh;
+	static MTypeId	id;
+	static MObject	attr_nodeStage;
+	static MObject	attr_inMesh;
+	static MObject	attr_outMesh;
+	static MObject	attr_stitchSize;
 	static MObject	inputMeshName;
 	static MObject	outputMeshName;
-	static MObject	nodeStage;
-	static MObject	stitchSize;
-	static MTypeId	id;
 
 	//----------------------------------------------------------------------//
 	// Stitch mesh node variables											//
@@ -95,15 +108,11 @@ public:
 
 	std::vector<Stitch> stitches;
 
-protected:
-
-	// get the currently selected edge
-	//int getSelectedEdge(MItMeshEdge &edgeIt);
-	static bool getSelectedEdge(int &index);
-
-	// function for selecting/defining stitch face loops
-	MStatus defineStitchLoops(void);
+private:
 
 	// function for performing tessellation
-	MStatus tessellateInputMesh(float stitchSizeData, MFnMesh &outputMeshFn);
+	MStatus CreateStitchLibrary(void);
+	MStatus TessellateInputMesh(float stitchSizeData, MFnMesh &outputMeshFn);
+	MStatus ColorByStitchType(void);
+	MStatus GenerateStitchCurves(float stitchSize);
 };

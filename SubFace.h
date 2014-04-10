@@ -23,4 +23,5 @@ public:
 	int			faceId;
 	MPointArray bkwdPoints;
 	MPointArray fwrdPoints;
+	int			stitchType;
 };

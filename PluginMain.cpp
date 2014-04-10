@@ -17,11 +17,19 @@
 #include <list>
 
 #include "StitchMeshNode.h"
+#include "StitchLevelEdits.h"
 
 MStatus initializePlugin( MObject obj )
 {
     MStatus   status = MStatus::kSuccess;
     MFnPlugin plugin( obj, "StitchMesh", "1.0", "Any");
+	
+	// Register Command
+    status = plugin.registerCommand( "ChangeStitchTypeCmd", ChangeStitchTypeCmd::creator, ChangeStitchTypeCmd::syntaxCreator );
+    if (!status) {
+        status.perror("registerCommand");
+        return status;
+    }
 
 	// Register Node
 	status = plugin.registerNode("StitchMeshNode", StitchMeshNode::id,
