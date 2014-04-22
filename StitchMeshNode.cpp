@@ -782,7 +782,7 @@ MStatus StitchMeshNode::TessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 					for (int v = numPts2-1; v < numPts1; v++)
 						subface.bkwdPoints.append(stitchRowPts[u][v]);
 					subface.fwrdPoints.append(stitchRowPts[u+1][numPts2-1]);
-					subface.stitchType = P;
+					subface.stitchType = X;
 					MSubFaces.push_back(subface);
 					
 					// add polygon to mesh
@@ -801,7 +801,7 @@ MStatus StitchMeshNode::TessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 					subface.bkwdPoints.append(stitchRowPts[u][numPts1-1]);
 					for (int v = numPts1; v < numPts2; v++)
 						subface.fwrdPoints.append(stitchRowPts[u+1][v]);
-					subface.stitchType = P;
+					subface.stitchType = Y1;
 					MSubFaces.push_back(subface);
 					
 					// add polygon to mesh
@@ -825,21 +825,37 @@ MStatus StitchMeshNode::ColorByStitchType(void)
 {
 	for (int i = 0; i < MSubFaces.size(); i++)
 	{
+		int p;
 		SubFace subface = MSubFaces[i];
-
-		MColor color; int p;
 		MItMeshPolygon subfaceIter(outputMeshObj);
 		subfaceIter.setIndex(subface.faceId, p);
-		subfaceIter.getColor(color);
 
-		if (subface.nBkwd == 2 && subface.nFwrd == 2)
-			oMeshFnShape->setFaceColor(MColor(1,1,0), subface.faceId);
-		if (subface.nBkwd == 2 && subface.nFwrd == 1)
-			oMeshFnShape->setFaceColor(MColor(0,0,1), subface.faceId);
-		if (subface.nBkwd == 1 && subface.nFwrd == 2)
-			oMeshFnShape->setFaceColor(MColor(1,0,0), subface.faceId);
+		switch (subface.stitchType) {
+			case (P):	  oMeshFnShape->setFaceColor(MColor(1.0, 1.0, 0.0), subface.faceId); break;
+			case (PY):	  oMeshFnShape->setFaceColor(MColor(1.0, 0.0, 1.0), subface.faceId); break;
+			case (YKY):   oMeshFnShape->setFaceColor(MColor(0.0, 1.0, 1.0), subface.faceId); break;
+			case (KPK):	  oMeshFnShape->setFaceColor(MColor(1.0, 1.0, 1.0), subface.faceId); break;
+			case (D312P): oMeshFnShape->setFaceColor(MColor(1.0, 0.5, 0.5), subface.faceId); break;
+			case (K1Y):	  oMeshFnShape->setFaceColor(MColor(0.5, 1.0, 0.5), subface.faceId); break;
+			case (S):	  oMeshFnShape->setFaceColor(MColor(0.0, 1.0, 0.2), subface.faceId); break;
+			case (SK):	  oMeshFnShape->setFaceColor(MColor(0.4, 0.6, 0.1), subface.faceId); break;
+			case (X):	  oMeshFnShape->setFaceColor(MColor(0.2, 0.2, 0.9), subface.faceId); break;
+			case (Y1):	  oMeshFnShape->setFaceColor(MColor(0.5, 0.9, 0.9), subface.faceId); break;
+			case (K):	  oMeshFnShape->setFaceColor(MColor(0.0, 0.7, 0.8), subface.faceId); break;
+			case (KP):	  oMeshFnShape->setFaceColor(MColor(0.8, 0.3, 0.8), subface.faceId); break;
+			case (D12K):  oMeshFnShape->setFaceColor(MColor(1.0, 0.7, 0.4), subface.faceId); break;
+			case (KYK):	  oMeshFnShape->setFaceColor(MColor(1.0, 0.0, 0.4), subface.faceId); break;
+			case (D123K): oMeshFnShape->setFaceColor(MColor(0.3, 0.3, 0.6), subface.faceId); break;
+		}
+
 		MGlobal::executeCommand("setAttr " + outputShapeName + ".displayColors true");
 	} 
+	return MStatus::kSuccess;
+}
+
+MStatus StitchMeshNode::ChangeStitchType(int faceId, int stitchType)
+{
+	MSubFaces[faceId].stitchType = stitchType;
 	return MStatus::kSuccess;
 }
 

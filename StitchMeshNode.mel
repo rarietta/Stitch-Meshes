@@ -19,7 +19,7 @@ sets -add initialShadingGroup $nodeShape;
 // Create stitch meshes node and connect input mesh and output mesh		//
 //----------------------------------------------------------------------//
 
-$node = `createNode StitchMeshNode -n StitchMeshNode`;
+$node = `createNode StitchMeshNode -n StitchMeshNode -p $nodeShape`;
 connectAttr ($inputMesh + ".outMesh") ($node + ".inputMesh");
 connectAttr ($node + ".outputMesh") ($nodeShape + ".inMesh");
 

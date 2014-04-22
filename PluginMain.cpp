@@ -67,6 +67,12 @@ MStatus uninitializePlugin( MObject obj)
 {
     MStatus   status = MStatus::kSuccess;
     MFnPlugin plugin( obj );
+	
+    status = plugin.deregisterCommand( "ChangeStitchTypeCmd" );
+    if (!status) {
+	    status.perror("deregisterCommand");
+	    return status;
+    }
 
 	status = plugin.deregisterNode(StitchMeshNode::id);
 	if (!status) {

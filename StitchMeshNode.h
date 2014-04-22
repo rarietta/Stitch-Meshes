@@ -108,11 +108,12 @@ public:
 
 	std::vector<Stitch> stitches;
 
-private:
+public:
 
 	// function for performing tessellation
 	MStatus CreateStitchLibrary(void);
 	MStatus TessellateInputMesh(float stitchSizeData, MFnMesh &outputMeshFn);
 	MStatus ColorByStitchType(void);
+	MStatus ChangeStitchType(int faceId, int stitchType);
 	MStatus GenerateStitchCurves(float stitchSize);
 };
