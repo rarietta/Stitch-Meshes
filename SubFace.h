@@ -15,13 +15,13 @@
 class SubFace : public MObject
 {
 public:
-				SubFace(int numBackward, int numForward, int faceIndex);
+				SubFace(int numBackward, int numForward);
 	virtual	   ~SubFace();
 
 	int			nBkwd;
 	int			nFwrd;
-	int			faceId;
-	MPointArray bkwdPoints;
-	MPointArray fwrdPoints;
+	MPointArray bkwdPoints; // TODO: remove
+	MPointArray fwrdPoints;	// TODO: remove
 	int			stitchType;
+	MVector		scaledNormal;
 };

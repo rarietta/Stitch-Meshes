@@ -25,7 +25,13 @@ MStatus initializePlugin( MObject obj )
     MFnPlugin plugin( obj, "StitchMesh", "1.0", "Any");
 	
 	// Register Command
-    status = plugin.registerCommand( "ChangeStitchTypeCmd", ChangeStitchTypeCmd::creator, ChangeStitchTypeCmd::syntaxCreator );
+    status = plugin.registerCommand( "ChangeStitchTypeCmd",   ChangeStitchTypeCmd::creator,	  ChangeStitchTypeCmd::syntaxCreator   );
+    //status = plugin.registerCommand( "InsertWaleEdgeCmd",	  InsertWaleEdgeCmd::creator,	  InsertWaleEdgeCmd::syntaxCreator	   );
+    status = plugin.registerCommand( "RemoveWaleEdgeCmd",	  RemoveWaleEdgeCmd::creator,	  RemoveWaleEdgeCmd::syntaxCreator	   );
+    //status = plugin.registerCommand( "ShiftWaleEdgeCmd",	  ShiftWaleEdgeCmd::creator,	  ShiftWaleEdgeCmd::syntaxCreator	   );
+    //status = plugin.registerCommand( "CollapseCourseEdgeCmd", CollapseCourseEdgeCmd::creator, CollapseCourseEdgeCmd::syntaxCreator );
+    //status = plugin.registerCommand( "SplitCourseEdgeCmd",	  SplitCourseEdgeCmd::creator,    SplitCourseEdgeCmd::syntaxCreator	   );
+    //status = plugin.registerCommand( "SetCableEdges",		  SetCableEdges::creator,		  SetCableEdges::syntaxCreator		   );
     if (!status) {
         status.perror("registerCommand");
         return status;
@@ -69,6 +75,7 @@ MStatus uninitializePlugin( MObject obj)
     MFnPlugin plugin( obj );
 	
     status = plugin.deregisterCommand( "ChangeStitchTypeCmd" );
+    status = plugin.deregisterCommand( "RemoveWaleEdgeCmd"   );
     if (!status) {
 	    status.perror("deregisterCommand");
 	    return status;

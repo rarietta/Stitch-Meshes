@@ -53,7 +53,7 @@
 using namespace std;
 
 enum {LOOP_SELECTION, TESSELLATION, STITCH_EDITING, YARN_GENERATION};
-enum {P, PY, YKY, KPK, D312P, K1Y, S, SK, X, Y1, K, KP, D12K, KYK, D123K};
+enum {X, Y1, S, K, P, SK, KP, D12K, K1Y, PY, YKY, KYK, KPK, D312P, D123K};
 typedef vector<PolyMeshFace> PolyMeshFaceLoop;
 
 class StitchMeshNode : public MPxNode
@@ -115,5 +115,7 @@ public:
 	MStatus TessellateInputMesh(float stitchSizeData, MFnMesh &outputMeshFn);
 	MStatus ColorByStitchType(void);
 	MStatus ChangeStitchType(int faceId, int stitchType);
+	MStatus SetDefaultStitchType(int faceId);
+	//MStatus RemoveWaleEdge(int id);
 	MStatus GenerateStitchCurves(float stitchSize);
 };

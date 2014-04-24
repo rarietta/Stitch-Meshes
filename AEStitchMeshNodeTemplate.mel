@@ -1,4 +1,5 @@
 
+
 //======================================================================================================================//
 // Loop Selection Build Function																						//
 //======================================================================================================================//
@@ -168,8 +169,10 @@ global proc AEStitchEditBuild (string $nodeNameArr) {
 	string $commitCmd = "setAttr " + $nodeName + ".nodeStage 3; \
 						 frameLayout -e -enable false StitchLevelEditing; \
 					     button -e -enable false CommitEditButton; \
-					     button -e -enable false ReturnEditButton;";
-	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 1; \
+					     button -e -enable false ReturnEditButton; \
+						 showHidden pCylinder1; select -r pCylinder1; scale 0.90;";
+	string $returnCmd = "showHidden pCylinder1; \
+						 setAttr " + $nodeName + ".nodeStage 1; \
 						 frameLayout -e -enable false StitchLevelEditing; \
 						 button -e -enable true CommitTessellationButton; \
 					     button -e -enable true ReturnTessellationButton; \
@@ -197,26 +200,41 @@ global proc AEStitchEditBuild (string $nodeNameArr) {
 		//--------------------------------------------------------------------------------------------------------------//
 		// Select Stitch Type            																				//
 		//--------------------------------------------------------------------------------------------------------------//
+		
+		int $X     = 0;
+		int $Y1    = 1;
+		int $S     = 2;
+		int $K     = 3;
+		int $P     = 4;
+		int $SK    = 5;
+		int $KP    = 6;
+		int $D12K  = 7;
+		int $K1Y   = 8;
+		int $PY    = 9;
+		int $YKY   = 10;
+		int $KYK   = 11;
+		int $KPK   = 12;
+		int $D312P = 13;
+		int $D123K = 14;
 
 		frameLayout -label "Stitch Types" -marginHeight 10 -marginWidth 20 -collapsable 0 StitchTypes;
 			rowColumnLayout -numberOfColumns 4;
-				symbolButton -h 80 -w 80 -image ($path + "tri1big2.bmp") -command ("ChangeStitchTypeCmd -s  0 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "tri2big2.bmp") -command ("ChangeStitchTypeCmd -s  1 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "sq1big2.bmp")  -command ("ChangeStitchTypeCmd -s  2 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "sq2big2.bmp")  -command ("ChangeStitchTypeCmd -s  3 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "sq3big2.bmp")  -command ("ChangeStitchTypeCmd -s  4 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "pt1big2.bmp")  -command ("ChangeStitchTypeCmd -s  5 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "pt2big2.bmp")  -command ("ChangeStitchTypeCmd -s  6 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "pt3big2.bmp")  -command ("ChangeStitchTypeCmd -s  7 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "pt4big2.bmp")  -command ("ChangeStitchTypeCmd -s  8 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "pt5big2.bmp")  -command ("ChangeStitchTypeCmd -s  9 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "hex1big2.bmp") -command ("ChangeStitchTypeCmd -s 10 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "hex2big2.bmp") -command ("ChangeStitchTypeCmd -s 11 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "hex3big2.bmp") -command ("ChangeStitchTypeCmd -s 12 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "hex4big2.bmp") -command ("ChangeStitchTypeCmd -s 13 -n " + $nodeName);
-				symbolButton -h 80 -w 80 -image ($path + "hex5big2.bmp") -command ("ChangeStitchTypeCmd -s 14 -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "tri1big2.bmp") -command ("ChangeStitchTypeCmd -s " + $X     + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "tri2big2.bmp") -command ("ChangeStitchTypeCmd -s " + $Y1    + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "sq1big2.bmp")  -command ("ChangeStitchTypeCmd -s " + $S     + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "sq2big2.bmp")  -command ("ChangeStitchTypeCmd -s " + $K     + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "sq3big2.bmp")  -command ("ChangeStitchTypeCmd -s " + $P     + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "pt1big2.bmp")  -command ("ChangeStitchTypeCmd -s " + $SK    + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "pt2big2.bmp")  -command ("ChangeStitchTypeCmd -s " + $KP    + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "pt3big2.bmp")  -command ("ChangeStitchTypeCmd -s " + $D12K  + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "pt4big2.bmp")  -command ("ChangeStitchTypeCmd -s " + $K1Y   + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "pt5big2.bmp")  -command ("ChangeStitchTypeCmd -s " + $PY    + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "hex1big2.bmp") -command ("ChangeStitchTypeCmd -s " + $YKY   + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "hex2big2.bmp") -command ("ChangeStitchTypeCmd -s " + $KYK   + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "hex3big2.bmp") -command ("ChangeStitchTypeCmd -s " + $KPK   + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "hex4big2.bmp") -command ("ChangeStitchTypeCmd -s " + $D312P + " -n " + $nodeName);
+				symbolButton -h 80 -w 80 -image ($path + "hex5big2.bmp") -command ("ChangeStitchTypeCmd -s " + $D123K + " -n " + $nodeName);
 			setParent ..;
-			button -l "Apply to Faces";
 		setParent ..;
 
 		//--------------------------------------------------------------------------------------------------------------//
@@ -247,7 +265,7 @@ global proc AEStitchEditBuild (string $nodeNameArr) {
 		frameLayout -label "Add, Remove or Shift Edges" -marginHeight 10 -marginWidth 10 -collapsable 0 AddRemoveShiftEdges;
 			rowColumnLayout -numberOfRows 1;
 				button -l "Add Edges";
-				button -l "Remove Edges";
+				button -l "Remove Edges" -command ("RemoveWaleEdgeCmd -n " + $nodeName);
 				button -l "Shift Edges";
 			setParent ..;
 		setParent ..;
@@ -309,7 +327,8 @@ global proc AEStitchEditUpdate (string $nodeNameArr) {
 		frameLayout -e -enable false StitchLevelEditing;
 	}
 	
-	string $returnCmd = "setAttr " + $nodeName + ".nodeStage 1; \
+	string $returnCmd = "showHidden pCylinder1; \
+						 setAttr " + $nodeName + ".nodeStage 1; \
 						 frameLayout -e -enable false StitchLevelEditing; \
 						 button -e -enable true CommitTessellationButton; \
 					     button -e -enable true ReturnTessellationButton; \

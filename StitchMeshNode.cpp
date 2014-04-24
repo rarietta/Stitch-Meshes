@@ -145,111 +145,7 @@ void* StitchMeshNode::creator()
 	node->oMeshFnShape = NULL;
 	node->outputMeshObj = MFnMeshData().create();
 	node->inputMeshObj = MFnMeshData().create();
-	
-	//----------------------------------------------------------------------------------------------------------//
-	// Create hard-coded stitch library																			//
-	// This will STAY hardcoded since this data is not variable													//
-	//----------------------------------------------------------------------------------------------------------//
-	
-	// create cage vertices for stitch "p"
-	MPointArray p_cage;
-	p_cage.append(-0.5, 0.0, -0.5);
-	p_cage.append(-0.5, 0.0,  0.5);
-	p_cage.append( 0.5, 0.0,  0.5);
-	p_cage.append( 0.5, 0.0, -0.5);
-
-	// create stitch "p" from cage
-	Stitch p_stitch(p_cage);
-
-	// create each of p_stitch's 3 yarns
-	YarnCurve p_curve0(p_cage);
-	p_curve0.addCV( 0.500000000,  0.00000000, -0.167040);
-	p_curve0.addCV( 0.500000000,  0.00000000, -0.167040);
-	p_curve0.addCV( 0.207771000, -0.03185650, -0.152330);
-	p_curve0.addCV( 0.207771000, -0.03185650, -0.152330);
-	p_curve0.addCV( 0.207771000, -0.03185650, -0.152330);
-	p_curve0.addCV( 0.129589000, -0.07489700, -0.147368);
-	p_curve0.addCV( 0.129589000, -0.07489700, -0.147368);
-	p_curve0.addCV( 0.129589000, -0.07489700, -0.147368);
-	p_curve0.addCV( 0.049043700, -0.04998820, -0.136713);
-	p_curve0.addCV( 0.024515900, -0.02760550, -0.153349);
-	p_curve0.addCV(-1.1953e-005, -0.00522291, -0.169985);
-	p_curve0.addCV( 0.002880830,  0.01795180, -0.207600);
-	p_curve0.addCV( 0.002880830,  0.01795180, -0.207600);
-	p_curve0.addCV( 0.002880830,  0.01795180, -0.207600);
-	p_curve0.addCV( 0.002350680,  0.07519160, -0.258189);
-	p_curve0.addCV( 0.000817694,  0.07519160, -0.278117);
-	p_curve0.addCV(-0.000715295,  0.07519160, -0.298046);
-	p_curve0.addCV(-0.003781270,  0.03121760, -0.360899);
-	p_curve0.addCV(-0.003781270,  0.03121760, -0.360899);
-	p_curve0.addCV(-0.003781270,  0.03121760, -0.360899);
-	p_curve0.addCV(-0.000000000,  0.00000000, -0.500000);
-	p_curve0.addCV(-0.000000000,  0.00000000, -0.500000);
-	p_curve0.addKnot(0); p_curve0.addKnot(0); p_curve0.addKnot(0);
-	p_curve0.addKnot(1); p_curve0.addKnot(1); p_curve0.addKnot(1);
-	p_curve0.addKnot(2); p_curve0.addKnot(2); p_curve0.addKnot(2);
-	p_curve0.addKnot(3); p_curve0.addKnot(3); p_curve0.addKnot(3);
-	p_curve0.addKnot(4); p_curve0.addKnot(4); p_curve0.addKnot(4);
-	p_curve0.addKnot(5); p_curve0.addKnot(5); p_curve0.addKnot(5);
-	p_curve0.addKnot(6); p_curve0.addKnot(6); p_curve0.addKnot(6);
-	p_curve0.addKnot(7); p_curve0.addKnot(7); p_curve0.addKnot(7);
-	p_stitch.addYarnCurve(p_curve0);
-	
-	YarnCurve p_curve1(p_cage);
-	p_curve1.addCV( 0.5000000000,  0.00000000, 0.167040);
-	p_curve1.addCV( 0.5000000000,  0.00000000, 0.167040);
-	p_curve1.addCV( 0.2077710000, -0.03185650, 0.152329);
-	p_curve1.addCV( 0.2077710000, -0.03185650, 0.152329);
-	p_curve1.addCV( 0.2077710000, -0.03185650, 0.152329);
-	p_curve1.addCV( 0.1295890000, -0.07489700, 0.147368);
-	p_curve1.addCV( 0.1295890000, -0.07489700, 0.147368);
-	p_curve1.addCV( 0.1295890000, -0.07489700, 0.147368);
-	p_curve1.addCV( 0.0490437000, -0.04998820, 0.136713);
-	p_curve1.addCV( 0.0245159000, -0.02760550, 0.153349);
-	p_curve1.addCV(-1.19531e-005, -0.00522291, 0.169985);
-	p_curve1.addCV( 0.0028808300,  0.01795180, 0.207600);
-	p_curve1.addCV( 0.0028808300,  0.01795180, 0.207600);
-	p_curve1.addCV( 0.0028808300,  0.01795180, 0.207600);
-	p_curve1.addCV( 0.0023506800,  0.07519160, 0.258188);
-	p_curve1.addCV( 0.0008176940,  0.07519160, 0.278117);
-	p_curve1.addCV(-0.0007152950,  0.07519160, 0.298046);
-	p_curve1.addCV(-0.0037812700,  0.03121760, 0.360898);
-	p_curve1.addCV(-0.0037812700,  0.03121760, 0.360898);
-	p_curve1.addCV(-0.0037812700,  0.03121760, 0.360898);
-	p_curve1.addCV(-0.0000000000,  0.00000000, 0.500000);
-	p_curve1.addCV(-0.0000000000,  0.00000000, 0.500000);
-	p_curve1.addKnot(0); p_curve1.addKnot(0); p_curve1.addKnot(0);
-	p_curve1.addKnot(1); p_curve1.addKnot(1); p_curve1.addKnot(1);
-	p_curve1.addKnot(2); p_curve1.addKnot(2); p_curve1.addKnot(2);
-	p_curve1.addKnot(3); p_curve1.addKnot(3); p_curve1.addKnot(3);
-	p_curve1.addKnot(4); p_curve1.addKnot(4); p_curve1.addKnot(4);
-	p_curve1.addKnot(5); p_curve1.addKnot(5); p_curve1.addKnot(5);
-	p_curve1.addKnot(6); p_curve1.addKnot(6); p_curve1.addKnot(6);
-	p_curve1.addKnot(7); p_curve1.addKnot(7); p_curve1.addKnot(7);
-	p_stitch.addYarnCurve(p_curve1);
-	
-	YarnCurve p_curve2(p_cage);
-	p_curve2.addCV(-0.500000, 0.00, -0.16715500);
-	p_curve2.addCV(-0.500000, 0.00, -0.16715500);
-	p_curve2.addCV(-0.337119, 0.00, -0.15809600);
-	p_curve2.addCV(-0.258357, 0.00, -0.25074600);
-	p_curve2.addCV(-0.179595, 0.00, -0.34339600);
-	p_curve2.addCV( 0.163595, 0.00, -0.35230100);
-	p_curve2.addCV( 0.161119, 0.00,  0.00181916);
-	p_curve2.addCV( 0.158643, 0.00,  0.35593900);
-	p_curve2.addCV(-0.192924, 0.00,  0.30888800);
-	p_curve2.addCV(-0.257387, 0.00,  0.24945600);
-	p_curve2.addCV(-0.321850, 0.00,  0.19002300);
-	p_curve2.addCV(-0.351489, 0.00,  0.16670800);
-	p_curve2.addCV(-0.500000, 0.00,  0.16773600);
-	p_curve2.addKnot(0); p_curve2.addKnot(0); p_curve2.addKnot(0);
-	p_curve2.addKnot(1); p_curve2.addKnot(1); p_curve2.addKnot(1);
-	p_curve2.addKnot(2); p_curve2.addKnot(2); p_curve2.addKnot(2);
-	p_curve2.addKnot(3); p_curve2.addKnot(3); p_curve2.addKnot(3);
-	p_curve2.addKnot(4); p_curve2.addKnot(4); p_curve2.addKnot(4);
-	p_stitch.addYarnCurve(p_curve2);
-
-	node->stitches.push_back(p_stitch);
+	node->CreateStitchLibrary();
 	
 	// end
 	return node;
@@ -751,7 +647,7 @@ MStatus StitchMeshNode::TessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 					vertexLoop.append(stitchRowPts[u+1][ v ]);
 					
 					// create output subface
-					SubFace subface(2, 2, subfaceId);
+					SubFace subface(2, 2);
 					subface.bkwdPoints.clear();
 					subface.fwrdPoints.clear();
 					subface.bkwdPoints.append(stitchRowPts[ u ][ v ]);
@@ -759,6 +655,7 @@ MStatus StitchMeshNode::TessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 					subface.fwrdPoints.append(stitchRowPts[u+1][ v ]);
 					subface.fwrdPoints.append(stitchRowPts[u+1][v+1]);
 					subface.stitchType = P;
+					subface.nBkwd = 2; subface.nFwrd = 2;
 					MSubFaces.push_back(subface);
 
 					// add polygon to mesh
@@ -778,11 +675,14 @@ MStatus StitchMeshNode::TessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 					vertexLoop.append(stitchRowPts[u+1][numPts2-1]);
 					
 					// create output subface
-					SubFace subface(2, 1, subfaceId);
+					SubFace subface(2, 1);
+					subface.bkwdPoints.clear();
+					subface.fwrdPoints.clear();
 					for (int v = numPts2-1; v < numPts1; v++)
 						subface.bkwdPoints.append(stitchRowPts[u][v]);
 					subface.fwrdPoints.append(stitchRowPts[u+1][numPts2-1]);
 					subface.stitchType = X;
+					subface.nBkwd = 2; subface.nFwrd = 1;
 					MSubFaces.push_back(subface);
 					
 					// add polygon to mesh
@@ -797,11 +697,14 @@ MStatus StitchMeshNode::TessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 						vertexLoop.append(stitchRowPts[u+1][v]);
 					
 					// create output subface
-					SubFace subface(1, 2, subfaceId);
+					SubFace subface(1, 2);
+					subface.bkwdPoints.clear();
+					subface.fwrdPoints.clear();
 					subface.bkwdPoints.append(stitchRowPts[u][numPts1-1]);
-					for (int v = numPts1; v < numPts2; v++)
+					for (int v = numPts1-1; v < numPts2; v++)
 						subface.fwrdPoints.append(stitchRowPts[u+1][v]);
 					subface.stitchType = Y1;
+					subface.nBkwd = 1; subface.nFwrd = 2;
 					MSubFaces.push_back(subface);
 					
 					// add polygon to mesh
@@ -823,31 +726,26 @@ MStatus StitchMeshNode::TessellateInputMesh(float stitchSizeData, MFnMesh &outpu
 
 MStatus StitchMeshNode::ColorByStitchType(void)
 {
+	int p;
 	for (int i = 0; i < MSubFaces.size(); i++)
 	{
-		int p;
-		SubFace subface = MSubFaces[i];
-		MItMeshPolygon subfaceIter(outputMeshObj);
-		subfaceIter.setIndex(subface.faceId, p);
-
-		switch (subface.stitchType) {
-			case (P):	  oMeshFnShape->setFaceColor(MColor(1.0, 1.0, 0.0), subface.faceId); break;
-			case (PY):	  oMeshFnShape->setFaceColor(MColor(1.0, 0.0, 1.0), subface.faceId); break;
-			case (YKY):   oMeshFnShape->setFaceColor(MColor(0.0, 1.0, 1.0), subface.faceId); break;
-			case (KPK):	  oMeshFnShape->setFaceColor(MColor(1.0, 1.0, 1.0), subface.faceId); break;
-			case (D312P): oMeshFnShape->setFaceColor(MColor(1.0, 0.5, 0.5), subface.faceId); break;
-			case (K1Y):	  oMeshFnShape->setFaceColor(MColor(0.5, 1.0, 0.5), subface.faceId); break;
-			case (S):	  oMeshFnShape->setFaceColor(MColor(0.0, 1.0, 0.2), subface.faceId); break;
-			case (SK):	  oMeshFnShape->setFaceColor(MColor(0.4, 0.6, 0.1), subface.faceId); break;
-			case (X):	  oMeshFnShape->setFaceColor(MColor(0.2, 0.2, 0.9), subface.faceId); break;
-			case (Y1):	  oMeshFnShape->setFaceColor(MColor(0.5, 0.9, 0.9), subface.faceId); break;
-			case (K):	  oMeshFnShape->setFaceColor(MColor(0.0, 0.7, 0.8), subface.faceId); break;
-			case (KP):	  oMeshFnShape->setFaceColor(MColor(0.8, 0.3, 0.8), subface.faceId); break;
-			case (D12K):  oMeshFnShape->setFaceColor(MColor(1.0, 0.7, 0.4), subface.faceId); break;
-			case (KYK):	  oMeshFnShape->setFaceColor(MColor(1.0, 0.0, 0.4), subface.faceId); break;
-			case (D123K): oMeshFnShape->setFaceColor(MColor(0.3, 0.3, 0.6), subface.faceId); break;
+		switch (MSubFaces[i].stitchType) {
+			case (X):	  oMeshFnShape->setFaceColor(MColor(0.2, 0.2, 0.9), i); break;
+			case (Y1):	  oMeshFnShape->setFaceColor(MColor(0.5, 0.9, 0.9), i); break;
+			case (S):	  oMeshFnShape->setFaceColor(MColor(0.0, 1.0, 0.2), i); break;
+			case (K):	  oMeshFnShape->setFaceColor(MColor(0.0, 0.7, 0.8), i); break;
+			case (P):	  oMeshFnShape->setFaceColor(MColor(1.0, 1.0, 0.0), i); break;
+			case (SK):	  oMeshFnShape->setFaceColor(MColor(0.4, 0.6, 0.1), i); break;
+			case (KP):	  oMeshFnShape->setFaceColor(MColor(0.8, 0.3, 0.8), i); break;
+			case (D12K):  oMeshFnShape->setFaceColor(MColor(1.0, 0.7, 0.4), i); break;
+			case (K1Y):	  oMeshFnShape->setFaceColor(MColor(0.5, 1.0, 0.5), i); break;
+			case (PY):	  oMeshFnShape->setFaceColor(MColor(1.0, 0.0, 1.0), i); break;
+			case (YKY):   oMeshFnShape->setFaceColor(MColor(0.0, 1.0, 1.0), i); break;
+			case (KYK):	  oMeshFnShape->setFaceColor(MColor(1.0, 0.0, 0.4), i); break;
+			case (KPK):	  oMeshFnShape->setFaceColor(MColor(1.0, 1.0, 1.0), i); break;
+			case (D312P): oMeshFnShape->setFaceColor(MColor(1.0, 0.5, 0.5), i); break;
+			case (D123K): oMeshFnShape->setFaceColor(MColor(0.3, 0.3, 0.6), i); break;
 		}
-
 		MGlobal::executeCommand("setAttr " + outputShapeName + ".displayColors true");
 	} 
 	return MStatus::kSuccess;
@@ -855,7 +753,40 @@ MStatus StitchMeshNode::ColorByStitchType(void)
 
 MStatus StitchMeshNode::ChangeStitchType(int faceId, int stitchType)
 {
-	MSubFaces[faceId].stitchType = stitchType;
+	SubFace sf = MSubFaces[faceId];
+	switch (stitchType) {
+		case (X):	  if (sf.nBkwd == 2 && sf.nFwrd == 1) { sf.stitchType = stitchType; } break;
+		case (Y1):	  if (sf.nBkwd == 1 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (S):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (K):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (P):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (SK):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
+		case (KP):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
+		case (D12K):  if (sf.nBkwd == 3 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (K1Y):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
+		case (PY):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
+		case (YKY):   if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
+		case (KYK):	  if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
+		case (KPK):	  if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
+		case (D312P): if (sf.nBkwd == 4 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (D123K): if (sf.nBkwd == 4 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+	}
+	MSubFaces[faceId] = sf;
+	return MStatus::kSuccess;
+}
+
+MStatus StitchMeshNode::SetDefaultStitchType(int faceId)
+{
+	SubFace sf = MSubFaces[faceId];
+	cout << "nB = " << sf.nBkwd << ", nF = " << sf.nFwrd << endl;
+	if		(sf.nBkwd == 2 && sf.nFwrd == 1) sf.stitchType = X;    
+	else if (sf.nBkwd == 1 && sf.nFwrd == 2) sf.stitchType = Y1;   
+	else if (sf.nBkwd == 2 && sf.nFwrd == 2) sf.stitchType = P;    
+	else if (sf.nBkwd == 2 && sf.nFwrd == 3) sf.stitchType = KP;   
+	else if (sf.nBkwd == 3 && sf.nFwrd == 2) sf.stitchType = D12K; 
+	else if (sf.nBkwd == 2 && sf.nFwrd == 4) sf.stitchType = YKY;  
+	else if (sf.nBkwd == 4 && sf.nFwrd == 2) sf.stitchType = D312P;
+	MSubFaces[faceId] = sf;
 	return MStatus::kSuccess;
 }
 
@@ -865,18 +796,42 @@ MStatus StitchMeshNode::ChangeStitchType(int faceId, int stitchType)
 
 MStatus StitchMeshNode::GenerateStitchCurves(float stitchSize)
 {
+	MPointArray vertices;
+	oMeshFnShape->getPoints(vertices);
+
 	for (int i = 0; i < MSubFaces.size(); i++)
 	{
+		cout << i << endl;
+
 		// determine correct stitch type to generate
 		SubFace subface = MSubFaces[i];
 		Stitch stitch = stitches[subface.stitchType];		
+		MVector subfaceNormal;
+		if (subface.nBkwd == 1) {
+			cout << "subface.bkwdPoints[0] = (" << subface.bkwdPoints[0].x << ", " << subface.bkwdPoints[0].y << ", " << subface.bkwdPoints[0].z << ")" << endl;
+			cout << "subface.fwrdPoints[0] = (" << subface.fwrdPoints[0].x << ", " << subface.fwrdPoints[0].y << ", " << subface.fwrdPoints[0].z << ")" << endl;
+			cout << "subface.fwrdPoints[1] = (" << subface.fwrdPoints[1].x << ", " << subface.fwrdPoints[1].y << ", " << subface.fwrdPoints[1].z << ")" << endl;
+			subfaceNormal = (subface.bkwdPoints[0] - subface.fwrdPoints[0]) ^ (subface.fwrdPoints[1] - subface.fwrdPoints[0]);
+		}
+		else					
+			subfaceNormal = (subface.bkwdPoints[1] - subface.bkwdPoints[0]) ^ (subface.fwrdPoints[0] - subface.bkwdPoints[0]);
+		if (subface.stitchType == Y1) cout << "normal = (" << subfaceNormal.x << ", " << subfaceNormal.y << ", " << subfaceNormal.z << ")" << endl; 
+
+		if (subface.stitchType == Y1) cout << "A" << endl;
 
 		// create face specific cage from subface vertices
+		int p;
+		MIntArray vtxIndices;
 		MPointArray subfaceCage;
-		for (int j = 0; j < subface.nBkwd; j++)
-			subfaceCage.append(subface.bkwdPoints[j]);
-		for (int j = subface.nFwrd-1; j >= 0; j--)
-			subfaceCage.append(subface.fwrdPoints[j]);
+		MItMeshPolygon subfaceIter(outputMeshObj);
+		subfaceIter.setIndex(i, p);
+		subfaceIter.getVertices(vtxIndices);
+		for (int j = 0; j < vtxIndices.length(); j++)
+			subfaceCage.append(vertices[vtxIndices[j]]);
+		for (int j = 0; j < subfaceCage.length(); j++)
+			if (subface.stitchType == Y1) cout << "cage pt = (" << subfaceCage[j].x << ", " << subfaceCage[j].y << ", " << subfaceCage[j].z << ")" << endl; 
+		
+		if (subface.stitchType == Y1) cout << "B" << endl;
 
 		// build all yarns
 		for (int j = 0; j < stitch.YarnCurves.size(); j++)
@@ -892,11 +847,6 @@ MStatus StitchMeshNode::GenerateStitchCurves(float stitchSize)
 					cv += weights[w] * MVector(subfaceCage[w]);
 						
 				// offset from plane
-				MVector subfaceNormal;
-				if (subface.nBkwd == 1) 
-					subfaceNormal = (subface.bkwdPoints[0] - subface.fwrdPoints[0]) ^ (subface.fwrdPoints[1] - subface.fwrdPoints[0]);
-				else					
-					subfaceNormal = (subface.bkwdPoints[1] - subface.bkwdPoints[0]) ^ (subface.fwrdPoints[0] - subface.bkwdPoints[0]);
 				cv += yc.CVoffsets[k] * subfaceNormal * stitchSize * 3.0f;
 						
 				// add cv
@@ -910,67 +860,75 @@ MStatus StitchMeshNode::GenerateStitchCurves(float stitchSize)
 			// create curve
 			MGlobal::executeCommand(curveCmd);
 		}
+		
+		if (subface.stitchType == Y1) cout << "C" << endl;
+
 	}
-	/*
-	for (int i = 0; i < MSubFaces.size(); i++)
-	{
-		int p;
-		MVector normal;
-		MItMeshPolygon outputFaceIter(outputData);
-		MString stitchName = MString("stitch1_group") + (i+1);
-		MVector stitchNormal(0,1,0);
-		MString importCmd = MString("file -import -type \"mayaBinary\" -ra true -mergeNamespacesOnClash false -options \"v=0;\"")
-							+ MString("-pr \"C:/Users/Richard/Documents/_Academics/Penn/02_S2014/CIS_660/AuthoringTool/StitchMeshes/MayaFiles/stitch1.mb\";");
-		MGlobal::executeCommand(importCmd);
-		SubFace subface = MSubFaces[i];
-		outputFaceIter.setIndex(subface.faceId, p);
-		outputFaceIter.getNormal(normal);
-		MVector axis = stitchNormal ^ normal;
-		float angle = acos(stitchNormal * normal);
-		MEulerRotation euler(0.0,0.0,0.0);
-		euler.incrementalRotateBy(axis, angle);
-		double rotX = euler.x * 180.0 / M_PI;
-		double rotY = euler.y * 180.0 / M_PI;
-		double rotZ = euler.z * 180.0 / M_PI;
-		MString rotXcmd = MString("setAttr ") + stitchName + MString(".rotateX ") + rotX;
-		MString rotYcmd = MString("setAttr ") + stitchName + MString(".rotateY ") + rotY;
-		MString rotZcmd = MString("setAttr ") + stitchName + MString(".rotateZ ") + rotZ;
-		MGlobal::executeCommand(rotXcmd);
-		MGlobal::executeCommand(rotYcmd);
-		MGlobal::executeCommand(rotZcmd);
-		MPoint center = outputFaceIter.center();
-		MGlobal::executeCommand("select " + stitchName);
-		MString moveCmd = MString("move ") + center.x + " " + center.y + " " + center.z;
-		MGlobal::executeCommand(moveCmd);
-		double courseScale = (subface.fwrdPoints[0] - subface.bkwdPoints[0]).length();
-		double waleScale = (subface.fwrdPoints[subface.fwrdPoints.length()-1] - subface.fwrdPoints[0]).length();
-		MString scaleCmd = MString("scale ") + courseScale + " " + waleScale*2.0 + " " + waleScale;
-		MGlobal::executeCommand(scaleCmd);
-		MSelectionList selected;
-		MGlobal::getActiveSelectionList(selected);
-		MDagPath dagPath;
-		selected.getDagPath(0,dagPath);
-		MFnTransform stitchTransform(dagPath);
-		while (true) {
-			MMatrix matrix = stitchTransform.transformationMatrix();
-			MVector localZ = MVector(1,0,0) * matrix; localZ.normalize();
-			angle = acos(MVector(0,1,0) * localZ);
-			if (angle < 1.0e-4) break;
-			euler.incrementalRotateBy(normal, angle);
-			rotX = euler.x * 180.0 / M_PI;
-			rotY = euler.y * 180.0 / M_PI;
-			rotZ = euler.z * 180.0 / M_PI;
-			rotXcmd = MString("setAttr ") + stitchName + MString(".rotateX ") + rotX;
-			rotYcmd = MString("setAttr ") + stitchName + MString(".rotateY ") + rotY;
-			rotZcmd = MString("setAttr ") + stitchName + MString(".rotateZ ") + rotZ;
-			MGlobal::executeCommand(rotXcmd);
-			MGlobal::executeCommand(rotYcmd);
-			MGlobal::executeCommand(rotZcmd);
-		}
-	}*/
 
 	return MStatus::kSuccess;
 }
+
+/*
+MStatus StitchMeshNode::RemoveWaleEdge(int id)
+{
+	oMeshFnShape->setObject(outputMeshObj);
+	
+	int p;
+	MItMeshEdge edgeIter(outputMeshObj);
+	edgeIter.setIndex(id, p);
+		
+	// assert edge is wale edge
+	// TODO
+
+	// find two connected faces
+	MIntArray connectedFaceIds;
+	edgeIter.getConnectedFaces(connectedFaceIds);
+	int minId = min(connectedFaceIds[0],connectedFaceIds[1]);
+	int maxId = max(connectedFaceIds[0],connectedFaceIds[1]);
+	SubFace subface1 = MSubFaces[minId];
+	SubFace subface2 = MSubFaces[maxId];
+		
+	// find sum of numBkwd values and sum of numFwrd values
+	int bSum = subface1.nBkwd + subface2.nBkwd - 1;
+	int fSum = subface1.nFwrd + subface2.nFwrd - 1;
+		
+	// assert neither sum is > 4
+	if ((bSum > 4) || (fSum > 4)) return MStatus::kInvalidParameter;
+		
+	// set numBkwd and numFwrd for combined face
+	subface1.nBkwd = bSum;
+	subface1.nFwrd = fSum;
+	MSubFaces[minId] = subface1;
+	MSubFaces.erase(MSubFaces.begin() + minId);
+	MSubFaces.erase(MSubFaces.begin() + minId);
+	for (int i = 0; i < MSubFaces.size(); i++)
+		cout << i << ": numBkwd = " << MSubFaces[i].nBkwd << ", nFwrd = " << MSubFaces[i].nFwrd << endl;
+
+	// delete edge
+	cout << "numPoly = " << oMeshFnShape->numPolygons() << endl;
+	MString cmd = "delete " + outputShapeName + ".e[" + id + "]";
+	cout << "cmd = " << cmd << endl;
+	MGlobal::executeCommand(cmd);
+	//oMeshFnShape->deleteEdge(id);
+	//oMeshFnShape->updateSurface();
+	//oMeshFnShape->syncObject();
+	oMeshFnShape->copy(oMeshFnShape->object(), outputMeshObj);
+
+	// change stitch type of lower index
+	cout << "min = " << min(connectedFaceIds[0],connectedFaceIds[1]) << endl;
+	SetDefaultStitchType(minId);
+	
+	MGlobal::executeCommand("select " + outputShapeName);
+	MSelectionList nodeSelection;
+	MGlobal::getActiveSelectionList(nodeSelection);
+	MObject selectedMObject;
+	nodeSelection.getDependNode(0, selectedMObject);
+	oMeshFnShape->copy(selectedMObject, outputMeshObj);
+
+	cout << "numPoly = " << oMeshFnShape->numPolygons() << endl;
+
+	return MStatus::kSuccess;
+}*/
 
 //======================================================================================================================//
 // Compute the new Node when the parameters are adjusted																//
@@ -986,27 +944,24 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		inputShapeName  = inputMeshNameHandle.asString();
 		outputShapeName = outputMeshNameHandle.asString();
 
-		// Get default stitch size
+		// Get default stitch size data
 		MDataHandle stitchSizeHandle = data.inputValue(attr_stitchSize);
 		float stitchSize = stitchSizeHandle.asFloat();
 
-		// Get stitch generation stage
+		// Get stitch generation stage data
 		MDataHandle nodeStageHandle = data.inputValue(attr_nodeStage);
 		int nodeStage = nodeStageHandle.asInt();
 
-		// Get input mesh object
+		// Get input attribute data
 		MDataHandle inMeshHandle = data.inputValue(attr_inMesh);
 		MObject inputMesh = inMeshHandle.asMesh();
-
-		// delete pointers to old input function sets
-		if (inputMeshFn	  != NULL) delete inputMeshFn;
-		inputMeshFn	  = new MFnMesh(inputMesh);
+		if (inputMeshFn	== NULL) inputMeshFn = new MFnMesh(inputMesh);
 		inputMeshFn->copy(inputMesh, inputMeshObj);
 
-		// get handle to output attribute
+		// Get output attribute data
 		MDataHandle outMeshHandle = data.outputValue(attr_outMesh);
-		MObject outputMesh  = MFnMeshData().create();
-		MFnMesh outputMeshFn  = MFnMesh().copy(inputMesh, outputMesh);
+		MObject outputMesh = MFnMeshData().create();
+		MFnMesh outputMeshFn = MFnMesh().copy(inputMesh, outputMesh);
 		outputMeshFn.setObject(outputMesh);
 
 		// initialize variables
@@ -1023,53 +978,53 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		
 		switch (nodeStage) {
 			
-		// User interaction stage for selecting edge loops in direction of stitch
-		//TODO: case (CLEAR_SELECTION):
-		case (LOOP_SELECTION):
-			if (callbackId == -1)
-				callbackId = MEventMessage::addEventCallback("SelectionChanged", LabelEdgeRows, this);
-			MGlobal::executeCommand("selectType -pe 1");
-			break;
+			// User interaction stage for selecting edge loops in direction of stitch
+			//TODO: case (CLEAR_SELECTION):
+			case (LOOP_SELECTION):
+				if (callbackId == -1)
+					callbackId = MEventMessage::addEventCallback("SelectionChanged", LabelEdgeRows, this);
+				MGlobal::executeCommand("selectType -pe 1");
+				break;
 
-		// Tessellate mesh according to stitch size
-		case (TESSELLATION):
-			if (numLoopFaces == inputMeshFn->numPolygons() && nodeStage) {
-				TessellateInputMesh(stitchSize, outputMeshFn);
-				outMeshHandle.set(outputMesh);
-				if (oMeshFnShape == NULL) oMeshFnShape = new MFnMesh;
-				oMeshFnShape->copy(outputMesh, outputMeshObj);
-			}
-			MGlobal::executeCommand("select " + this->name());
-			break;
+			// Tessellate mesh according to stitch size
+			case (TESSELLATION):
+				if (numLoopFaces == inputMeshFn->numPolygons()) {
+					TessellateInputMesh(stitchSize, outputMeshFn);
+					outMeshHandle.set(outputMesh);
+					if (oMeshFnShape == NULL) oMeshFnShape = new MFnMesh;
+					oMeshFnShape->copy(outputMesh, outputMeshObj);
+				}
+				MGlobal::executeCommand("select " + this->name());
+				break;
 
-		// Update output mesh colors to for stitch level editing			
-		case (STITCH_EDITING):
-			StitchMeshNode::ColorByStitchType();
-			outMeshHandle.setMObject(outputMeshObj);
-			MGlobal::executeCommand("select " + this->name());
-			break;
+			// Update output mesh colors to for stitch level editing			
+			case (STITCH_EDITING):
+				StitchMeshNode::ColorByStitchType();
+				outMeshHandle.setMObject(outputMeshObj);
+				MGlobal::executeCommand("select " + this->name());
+				break;
 
-		// Replace tessellated faces with stitch models			
-		case (YARN_GENERATION): {
-			float maxEdgeLength = -1;
-			MItMeshEdge subfaceEdges(outputMeshObj);
-			while (!subfaceEdges.isDone()) {
-				double length;
-				subfaceEdges.getLength(length);
-				if (maxEdgeLength < length || maxEdgeLength < 0)
-					maxEdgeLength = length;
-				subfaceEdges.next();
-			}
-			GenerateStitchCurves(1.0/maxEdgeLength);
-			//TODO: JoinStitchCurves();
-			//TODO: ExtrudeStitchCurves();
-			MGlobal::executeCommand(MString("hide ") + outputShapeName);
-			MGlobal::executeCommand("select " + this->name());
-			break;}
+			// Replace tessellated faces with stitch models			
+			case (YARN_GENERATION): {
+				float maxEdgeLength = -1;
+				MItMeshEdge subfaceEdges(outputMeshObj);
+				while (!subfaceEdges.isDone()) {
+					double length;
+					subfaceEdges.getLength(length);
+					if (maxEdgeLength < length || maxEdgeLength < 0)
+						maxEdgeLength = length;
+					subfaceEdges.next();
+				}
+				GenerateStitchCurves(1.0/maxEdgeLength);
+				//TODO: JoinStitchCurves();
+				//TODO: ExtrudeStitchCurves();
+				MGlobal::executeCommand(MString("hide ") + outputShapeName);
+				MGlobal::executeCommand("select " + this->name());
+				break;}
 
-		// Default switch case; should never reach this
-		default:
-			break;
+			// Default switch case; should never reach this
+			default:
+				break;
 		}
 
 		//--------------------------------------------------------------------------------------------------------------//

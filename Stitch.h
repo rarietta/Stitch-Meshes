@@ -31,6 +31,7 @@ public:
 	std::vector<int> knotVector;		// knot vector
 	std::vector<float> CVoffsets;		// y-value of CV along normal
 	std::vector<MVCWeights> CVweights;	// series of MVC weights for CV
+	MString megaCurve;
 };
 
 class Stitch
