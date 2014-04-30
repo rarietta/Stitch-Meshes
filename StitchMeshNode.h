@@ -17,6 +17,7 @@
 
 #include "Stitch.h"
 #include "SubFace.h"
+#include "QuickUnion.h"
 #include "PolyMeshFace.h"
 
 #include <maya/MTime.h>
@@ -116,6 +117,7 @@ public:
 	MStatus ColorByStitchType(void);
 	MStatus ChangeStitchType(int faceId, int stitchType);
 	MStatus SetDefaultStitchType(int faceId);
-	//MStatus RemoveWaleEdge(int id);
-	MStatus GenerateStitchCurves(float stitchSize);
+	MStatus RemoveWaleEdge(int id);
+	MStatus GenerateStitches();
+	MStatus RelaxMesh();
 };

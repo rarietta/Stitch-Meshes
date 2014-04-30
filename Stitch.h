@@ -27,11 +27,11 @@ public:
 	MStatus		addCV(MPoint cv);
 	MStatus		addCV(float cvX, float cvY, float cvZ);
 
-	MPointArray cageVertices;			// corners of cage
-	std::vector<int> knotVector;		// knot vector
-	std::vector<float> CVoffsets;		// y-value of CV along normal
-	std::vector<MVCWeights> CVweights;	// series of MVC weights for CV
-	MString megaCurve;
+	int id;								 // id of maya nurbs curve to be created
+	MPointArray cageVertices;			 // corners of cage
+	std::vector<int> knotVector;		 // knot vector
+	std::vector<float> CVoffsets;		 // y-value of CV along normal
+	std::vector<MVCWeights> CVweights;	 // series of MVC weights for CV
 };
 
 class Stitch

@@ -103,10 +103,10 @@ StitchMeshNode::CreateStitchLibrary(void)
 
 	// create cage vertices for stitch "s"
 	MPointArray s_cage;
-	s_cage.append(-45.999956, 0, -1.000044);
-	s_cage.append(-40.000044, 0, -1.000044);
-	s_cage.append(-40.000044, 0, -6.999956);
-	s_cage.append(-45.999956, 0, -6.999956);
+	s_cage.append(-46.00, 0, -1.00);
+	s_cage.append(-40.00, 0, -1.00);
+	s_cage.append(-40.00, 0, -7.00);
+	s_cage.append(-46.00, 0, -7.00);
 
 	// create stitch "s" from cage
 	Stitch s_stitch(s_cage);
@@ -145,15 +145,15 @@ StitchMeshNode::CreateStitchLibrary(void)
 	YarnCurve s_curve2(s_cage);
 	s_curve2.addCV(-42, 0, -7);
 	s_curve2.addCV(-42, 0, -7);
-	s_curve2.addCV(-42, 0.141032/5.75, -5);
-	s_curve2.addCV(-42, 0.141032/5.75, -5);
-	s_curve2.addCV(-42, 0.141032/5.75, -5);
-	s_curve2.addCV(-42, 0.429182/5.75, -4);
-	s_curve2.addCV(-42, 0.429182/5.75, -4);
-	s_curve2.addCV(-42, 0.429182/5.75, -4);
-	s_curve2.addCV(-42, 0.141032/5.75, -3);
-	s_curve2.addCV(-42, 0.141032/5.75, -3);
-	s_curve2.addCV(-42, 0.141032/5.75, -3);
+	s_curve2.addCV(-42, 0.197298/5.75, -5);
+	s_curve2.addCV(-42, 0.197298/5.75, -5);
+	s_curve2.addCV(-42, 0.197298/5.75, -5);
+	s_curve2.addCV(-42, 0.417964/5.75, -4);
+	s_curve2.addCV(-42, 0.417964/5.75, -4);
+	s_curve2.addCV(-42, 0.417964/5.75, -4);
+	s_curve2.addCV(-42, 0.197298/5.75, -3);
+	s_curve2.addCV(-42, 0.197298/5.75, -3);
+	s_curve2.addCV(-42, 0.197298/5.75, -3);
 	s_curve2.addCV(-42, 0, -1);
 	s_curve2.addCV(-42, 0, -1);
 	s_curve2.addKnot(0); s_curve2.addKnot(0); s_curve2.addKnot(0);
@@ -351,8 +351,8 @@ StitchMeshNode::CreateStitchLibrary(void)
 	p_stitch.addYarnCurve(p_curve1);
 	
 	YarnCurve p_curve2(p_cage);
-	p_curve2.addCV(-0.500000, 0.00, -0.16715500);
-	p_curve2.addCV(-0.500000, 0.00, -0.16715500);
+	p_curve2.addCV(-0.500000, 0.00, -0.16704000);
+	p_curve2.addCV(-0.500000, 0.00, -0.16704000);
 	p_curve2.addCV(-0.337119, 0.00, -0.15809600);
 	p_curve2.addCV(-0.258357, 0.00, -0.25074600);
 	p_curve2.addCV(-0.179595, 0.00, -0.34339600);
@@ -362,8 +362,8 @@ StitchMeshNode::CreateStitchLibrary(void)
 	p_curve2.addCV(-0.192924, 0.00,  0.30888800);
 	p_curve2.addCV(-0.257387, 0.00,  0.24945600);
 	p_curve2.addCV(-0.321850, 0.00,  0.19002300);
-	p_curve2.addCV(-0.351489, 0.00,  0.16670800);
-	p_curve2.addCV(-0.500000, 0.00,  0.16773600);
+	p_curve2.addCV(-0.351489, 0.00,  0.16704000);
+	p_curve2.addCV(-0.500000, 0.00,  0.16704000);
 	p_curve2.addKnot(0); p_curve2.addKnot(0); p_curve2.addKnot(0);
 	p_curve2.addKnot(1); p_curve2.addKnot(1); p_curve2.addKnot(1);
 	p_curve2.addKnot(2); p_curve2.addKnot(2); p_curve2.addKnot(2);

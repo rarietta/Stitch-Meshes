@@ -379,10 +379,12 @@ void LabelEdgeRows(void * data)
 
 				// if the connected edge has one adjacent face equal to the next adjacent face in the bkwd loop
 				// and one face not currently in a loop, then it is the next bkwd course edge
-				if ((faceId0 == stitchnode->MPolyMeshFaceLoops[adjFaceLoop][nextAdjFaceIndex].faceIndex && faceId1 == -1) ||
-					(faceId1 == stitchnode->MPolyMeshFaceLoops[adjFaceLoop][nextAdjFaceIndex].faceIndex && faceId0 == -1))
+				if ((faceId0 == stitchnode->MPolyMeshFaceLoops[adjFaceLoop][nextAdjFaceIndex].faceIndex && stitchnode->faceLoopNumber[faceId1] == -1) ||
+					(faceId0 == stitchnode->MPolyMeshFaceLoops[adjFaceLoop][nextAdjFaceIndex].faceIndex && stitchnode->faceLoopNumber[faceId1] == currentLoop) ||
+					(faceId1 == stitchnode->MPolyMeshFaceLoops[adjFaceLoop][nextAdjFaceIndex].faceIndex && stitchnode->faceLoopNumber[faceId0] == -1) ||
+					(faceId1 == stitchnode->MPolyMeshFaceLoops[adjFaceLoop][nextAdjFaceIndex].faceIndex && stitchnode->faceLoopNumber[faceId0] == currentLoop))
 				{
-						nextCourseEdgeIndex = connectedEdges[i];
+					nextCourseEdgeIndex = connectedEdges[i];
 				}
 
 				// if it is not the next backward course edge, then it must have two adjacent faces not in a loop 
@@ -751,6 +753,233 @@ MStatus StitchMeshNode::ColorByStitchType(void)
 	return MStatus::kSuccess;
 }
 
+MStatus StitchMeshNode::SetDefaultStitchType(int faceId)
+{
+	SubFace sf = MSubFaces[faceId];
+	if		(sf.nBkwd == 2 && sf.nFwrd == 1) sf.stitchType = X;    
+	else if (sf.nBkwd == 1 && sf.nFwrd == 2) sf.stitchType = Y1;   
+	else if (sf.nBkwd == 2 && sf.nFwrd == 2) sf.stitchType = P;    
+	else if (sf.nBkwd == 2 && sf.nFwrd == 3) sf.stitchType = KP;   
+	else if (sf.nBkwd == 3 && sf.nFwrd == 2) sf.stitchType = D12K; 
+	else if (sf.nBkwd == 2 && sf.nFwrd == 4) sf.stitchType = YKY;  
+	else if (sf.nBkwd == 4 && sf.nFwrd == 2) sf.stitchType = D312P;
+	MSubFaces[faceId] = sf;
+	return MStatus::kSuccess;
+}
+
+//======================================================================================================================//
+// Functions for relaxing the stitch mesh and generating the stitches													//
+//======================================================================================================================//
+
+MStatus StitchMeshNode::RelaxMesh(void)
+{
+	// TODO: Compute r_wale and r_course
+	// TODO: Calculate Forces
+		// for each face f in the mesh
+			// for each subface s in f
+				// for each vertex i in s
+					// for each other vertex j in s
+						// force on i += computeStretchForce(j)
+				// for each vertex j in s
+					// for each pair of neighbors i and k in s
+						// shearForce = computeShearForce(i,j,k)
+						// force on j += shearForce
+						// force on i -= shearForce / 2.0
+						// force on k -= shearForce / 2.0
+		// for each wale edge w1 connecting vertex i & j
+			// find next wale edge w2 connecting vertex j & k
+			// wale strut force = computeWaleStrutForce(i,j,k)
+			// force on i += wale strut force
+			// force on k -= wale strut force
+	// TODO: Solve System
+	return MStatus::kSuccess;
+}
+
+MStatus StitchMeshNode::GenerateStitches(void)
+{
+	float maxEdgeLength = -1;
+	MItMeshEdge subfaceEdges(outputMeshObj);
+	while (!subfaceEdges.isDone()) {
+		double length;
+		subfaceEdges.getLength(length);
+		if (maxEdgeLength < length || maxEdgeLength < 0)
+			maxEdgeLength = length;
+		subfaceEdges.next();
+	}
+	float stitchSize = maxEdgeLength;
+	float offset = 1.0 / maxEdgeLength;
+
+	MPointArray vertices;
+	oMeshFnShape->getPoints(vertices);
+	MItMeshPolygon subfaceIter(outputMeshObj);
+	int p;
+
+	MString circleCmd = MString("circle -c 0 0 0 -nr 0 1 0 -sw 360 -r ") + ((float) stitchSize / 13.0f) 
+					  + MString(" -d 3 -ut 0 -tol 0.01 -s 8 -ch 1 -name \"extrudingCircle\";");
+	MGlobal::executeCommand(circleCmd);
+
+	int numTotalCurves = 0;
+	std::vector<MString> curve_names;
+	std::vector<int> curve_subfaceIds;
+	std::vector<std::vector<int>> subface_curveIds;
+	std::vector<std::vector<MPoint>> curve_endpoints;
+
+	for (int i = 0; i < MSubFaces.size(); i++)
+	{
+		// determine correct stitch type to generate
+		SubFace subface = MSubFaces[i];
+		Stitch stitch = stitches[subface.stitchType];		
+		MVector subfaceNormal;
+		if (subface.nBkwd == 1) 
+			subfaceNormal = (subface.bkwdPoints[0]-subface.fwrdPoints[0]) ^ (subface.fwrdPoints[1]-subface.fwrdPoints[0]);
+		else					
+			subfaceNormal = (subface.bkwdPoints[1]-subface.bkwdPoints[0]) ^ (subface.fwrdPoints[0]-subface.bkwdPoints[0]);
+
+		// create face specific cage from subface vertices
+		MIntArray vtxIndices;
+		MPointArray subfaceCage;
+		subfaceIter.setIndex(i, p);
+		subfaceIter.getVertices(vtxIndices);
+		for (int j = 0; j < vtxIndices.length(); j++)
+			subfaceCage.append(vertices[vtxIndices[j]]);
+
+		std::vector<int> ids;
+		subface_curveIds.push_back(ids);
+		
+		// build all yarns
+		for (int j = 0; j < stitch.YarnCurves.size(); j++)
+		{
+			subface_curveIds[i].push_back(numTotalCurves);
+			MString curveName = MString("stitchCurve_") + numTotalCurves;
+			curve_names.push_back(curveName);
+			curve_subfaceIds.push_back(i);
+
+			std::vector<MPoint> endpoints;
+			curve_endpoints.push_back(endpoints);
+
+			YarnCurve yc = stitch.YarnCurves[j];
+			MString curveCmd = "curve ";
+			for (int k = 0; k < yc.CVweights.size(); k++)
+			{
+				// position in plane
+				MPoint cv(0,0,0);
+				MVCWeights weights = yc.CVweights[k];
+				for (int w = 0; w < weights.length(); w++)
+					cv += weights[w] * MVector(subfaceCage[w]);
+						
+				// offset from plane
+				cv += yc.CVoffsets[k] * subfaceNormal * offset * 3.0f;
+				if (k == 0 || k == yc.CVweights.size()-1) curve_endpoints[numTotalCurves].push_back(cv);
+						
+				// add cv
+				curveCmd += MString("-p ") + cv.x + " " + cv.y + " " + cv.z + " ";
+			}
+
+			// add knots
+			for (int k = 0; k < yc.knotVector.size(); k++)
+				curveCmd += MString("-k ") + yc.knotVector[k] + " ";
+					
+			// create yarn curve
+			curveCmd += MString("-name \"") + curveName + "\";";
+			MGlobal::executeCommand(curveCmd);
+			
+			// rebuild yarn curves for extrusion
+			MString rebuildCmd = MString("rebuildCurve -ch 1 -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 0 -kt 0 -s 0 -d 3 -tol 0.01 \"") + curveName + "\"";
+			MGlobal::executeCommand(rebuildCmd);
+
+			numTotalCurves++;
+		}
+	}
+	
+	cout << "number of curves = " << curve_names.size() << endl;
+	// Weighted Quick Union Algorithm with Path Compression for combining continuous stitch curves
+	QuickUnion curveQU(numTotalCurves);
+	for (int this_curveId = 0; this_curveId < numTotalCurves; this_curveId++)
+	{
+		MString this_curve = curve_names[this_curveId];
+		int subfaceId = curve_subfaceIds[this_curveId];
+		subfaceIter.setIndex(subfaceId, p);
+
+		MIntArray connectedFaces;
+		subfaceIter.getConnectedFaces(connectedFaces);
+
+		for (int j = 0; j < connectedFaces.length(); j++)
+		{
+			for (int k = 0; k < subface_curveIds[connectedFaces[j]].size(); k++)
+			{
+				int that_curveId = subface_curveIds[connectedFaces[j]][k];
+				MString that_curve = "stitchCurve_" + that_curveId;
+
+				if (((curve_endpoints[this_curveId][0]-curve_endpoints[that_curveId][0]).length() < 1.0e-5) ||
+					((curve_endpoints[this_curveId][0]-curve_endpoints[that_curveId][1]).length() < 1.0e-5) ||
+					((curve_endpoints[this_curveId][1]-curve_endpoints[that_curveId][0]).length() < 1.0e-5) ||
+					((curve_endpoints[this_curveId][1]-curve_endpoints[that_curveId][1]).length() < 1.0e-5))
+				{
+					curveQU.unite(this_curveId, that_curveId);
+				}
+			}
+		}
+	}
+	
+	int threadCount = 0;
+	std::vector<bool> isAttached;
+	for (int i = 0; i < numTotalCurves; i++) { isAttached.push_back(false); }
+
+	for (int i = 0; i < numTotalCurves; i++)
+	{
+		if (!isAttached[i])
+		{
+			MString this_curveName = curve_names[i];
+			MString attachCmd = "attachCurve -ch 0 -rpo 1 -kmk 0 -m 1 -bb 0.5 -bki 1 -p 1 " + this_curveName;
+
+			int this_root = curveQU.root(i);
+
+			int numOthers = 0;
+			for (int j = i+1; j < numTotalCurves; j++)
+			{
+				if (curveQU.root(j) == this_root)
+				{
+					isAttached[j] = true;
+					MString that_curveName = curve_names[j];
+					attachCmd += " " + that_curveName;
+					numOthers++;
+				}
+			}
+
+			if (numOthers > 0)
+				MGlobal::executeCommand(attachCmd);
+			
+			isAttached[i] = true;
+			MString renameThreadCmd = "rename " + curve_names[i] + " thread_" + threadCount++;
+			MGlobal::executeCommand(renameThreadCmd);
+		}
+	}
+
+	cout << "number of threads = " << threadCount << endl;
+
+	// delete old curves, leaving only combined threads
+	for (int i = 0; i < numTotalCurves; i++) {
+		MString deleteCmd = "if (`objExists " + curve_names[i] + "`) { delete " + curve_names[i] + "; };";
+		MGlobal::executeCommand(deleteCmd);
+	}
+
+	// extrude along all remaing thread curves
+	for (int i = 0; i < threadCount; i++) {
+		cout << "extruding thread #" << i << endl;
+		MString threadName = MString("thread_") + i;
+		MString rebuildCmd = MString("rebuildCurve -ch 1 -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 0 -kt 0 -s 0 -d 3 -tol 0.01 \"") + threadName + "\"";
+		MGlobal::executeCommand(rebuildCmd);
+		MString extrudeCmd = MString("extrude -ch true -rn false -po 1 -et 2 -ucp 1 -fpt 1 -upn 1 -rotation 0 -scale 1 -rsp 1 \"extrudingCircle\" \"") + threadName + "\";";
+		MGlobal::executeCommand(extrudeCmd);
+	} MGlobal::executeCommand("delete extrudingCircle");
+
+	return MStatus::kSuccess;
+}
+
+//======================================================================================================================//
+// Stitch level editing functions																						//
+//======================================================================================================================//
+
 MStatus StitchMeshNode::ChangeStitchType(int faceId, int stitchType)
 {
 	SubFace sf = MSubFaces[faceId];
@@ -775,103 +1004,9 @@ MStatus StitchMeshNode::ChangeStitchType(int faceId, int stitchType)
 	return MStatus::kSuccess;
 }
 
-MStatus StitchMeshNode::SetDefaultStitchType(int faceId)
-{
-	SubFace sf = MSubFaces[faceId];
-	cout << "nB = " << sf.nBkwd << ", nF = " << sf.nFwrd << endl;
-	if		(sf.nBkwd == 2 && sf.nFwrd == 1) sf.stitchType = X;    
-	else if (sf.nBkwd == 1 && sf.nFwrd == 2) sf.stitchType = Y1;   
-	else if (sf.nBkwd == 2 && sf.nFwrd == 2) sf.stitchType = P;    
-	else if (sf.nBkwd == 2 && sf.nFwrd == 3) sf.stitchType = KP;   
-	else if (sf.nBkwd == 3 && sf.nFwrd == 2) sf.stitchType = D12K; 
-	else if (sf.nBkwd == 2 && sf.nFwrd == 4) sf.stitchType = YKY;  
-	else if (sf.nBkwd == 4 && sf.nFwrd == 2) sf.stitchType = D312P;
-	MSubFaces[faceId] = sf;
-	return MStatus::kSuccess;
-}
-
-//======================================================================================================================//
-// Color all subfaces by the specified stitch type from the library														//
-//======================================================================================================================//
-
-MStatus StitchMeshNode::GenerateStitchCurves(float stitchSize)
-{
-	MPointArray vertices;
-	oMeshFnShape->getPoints(vertices);
-
-	for (int i = 0; i < MSubFaces.size(); i++)
-	{
-		cout << i << endl;
-
-		// determine correct stitch type to generate
-		SubFace subface = MSubFaces[i];
-		Stitch stitch = stitches[subface.stitchType];		
-		MVector subfaceNormal;
-		if (subface.nBkwd == 1) {
-			cout << "subface.bkwdPoints[0] = (" << subface.bkwdPoints[0].x << ", " << subface.bkwdPoints[0].y << ", " << subface.bkwdPoints[0].z << ")" << endl;
-			cout << "subface.fwrdPoints[0] = (" << subface.fwrdPoints[0].x << ", " << subface.fwrdPoints[0].y << ", " << subface.fwrdPoints[0].z << ")" << endl;
-			cout << "subface.fwrdPoints[1] = (" << subface.fwrdPoints[1].x << ", " << subface.fwrdPoints[1].y << ", " << subface.fwrdPoints[1].z << ")" << endl;
-			subfaceNormal = (subface.bkwdPoints[0] - subface.fwrdPoints[0]) ^ (subface.fwrdPoints[1] - subface.fwrdPoints[0]);
-		}
-		else					
-			subfaceNormal = (subface.bkwdPoints[1] - subface.bkwdPoints[0]) ^ (subface.fwrdPoints[0] - subface.bkwdPoints[0]);
-		if (subface.stitchType == Y1) cout << "normal = (" << subfaceNormal.x << ", " << subfaceNormal.y << ", " << subfaceNormal.z << ")" << endl; 
-
-		if (subface.stitchType == Y1) cout << "A" << endl;
-
-		// create face specific cage from subface vertices
-		int p;
-		MIntArray vtxIndices;
-		MPointArray subfaceCage;
-		MItMeshPolygon subfaceIter(outputMeshObj);
-		subfaceIter.setIndex(i, p);
-		subfaceIter.getVertices(vtxIndices);
-		for (int j = 0; j < vtxIndices.length(); j++)
-			subfaceCage.append(vertices[vtxIndices[j]]);
-		for (int j = 0; j < subfaceCage.length(); j++)
-			if (subface.stitchType == Y1) cout << "cage pt = (" << subfaceCage[j].x << ", " << subfaceCage[j].y << ", " << subfaceCage[j].z << ")" << endl; 
-		
-		if (subface.stitchType == Y1) cout << "B" << endl;
-
-		// build all yarns
-		for (int j = 0; j < stitch.YarnCurves.size(); j++)
-		{
-			YarnCurve yc = stitch.YarnCurves[j];
-			MString curveCmd = "curve -bezier ";
-			for (int k = 0; k < yc.CVweights.size(); k++)
-			{
-				// position in plane
-				MPoint cv(0,0,0);
-				MVCWeights weights = yc.CVweights[k];
-				for (int w = 0; w < weights.length(); w++)
-					cv += weights[w] * MVector(subfaceCage[w]);
-						
-				// offset from plane
-				cv += yc.CVoffsets[k] * subfaceNormal * stitchSize * 3.0f;
-						
-				// add cv
-				curveCmd += MString("-p ") + cv.x + " " + cv.y + " " + cv.z + " ";
-			}
-
-			// add knots
-			for (int k = 0; k < yc.knotVector.size(); k++)
-				curveCmd += MString("-k ") + yc.knotVector[k] + " ";
-					
-			// create curve
-			MGlobal::executeCommand(curveCmd);
-		}
-		
-		if (subface.stitchType == Y1) cout << "C" << endl;
-
-	}
-
-	return MStatus::kSuccess;
-}
-
-/*
 MStatus StitchMeshNode::RemoveWaleEdge(int id)
 {
-	oMeshFnShape->setObject(outputMeshObj);
+	//oMeshFnShape->setObject(outputMeshObj);
 	
 	int p;
 	MItMeshEdge edgeIter(outputMeshObj);
@@ -899,20 +1034,25 @@ MStatus StitchMeshNode::RemoveWaleEdge(int id)
 	subface1.nBkwd = bSum;
 	subface1.nFwrd = fSum;
 	MSubFaces[minId] = subface1;
-	MSubFaces.erase(MSubFaces.begin() + minId);
-	MSubFaces.erase(MSubFaces.begin() + minId);
+	//MSubFaces.erase(MSubFaces.begin() + maxId);
 	for (int i = 0; i < MSubFaces.size(); i++)
 		cout << i << ": numBkwd = " << MSubFaces[i].nBkwd << ", nFwrd = " << MSubFaces[i].nFwrd << endl;
 
 	// delete edge
 	cout << "numPoly = " << oMeshFnShape->numPolygons() << endl;
-	MString cmd = "delete " + outputShapeName + ".e[" + id + "]";
-	cout << "cmd = " << cmd << endl;
-	MGlobal::executeCommand(cmd);
-	//oMeshFnShape->deleteEdge(id);
-	//oMeshFnShape->updateSurface();
-	//oMeshFnShape->syncObject();
-	oMeshFnShape->copy(oMeshFnShape->object(), outputMeshObj);
+	//MString cmd = "select -r " + outputShapeName + ".e[" + id + "]; doDelete;";
+	//cout << "cmd = " << cmd << endl;
+	//MGlobal::executeCommand(cmd);
+	//cout << "numPoly = " << oMeshFnShape->numPolygons() << endl;
+	//cmd = "select -r " + outputShapeName + ".f[" + maxId + "]; doDelete;";
+	//cout << "cmd = " << cmd << endl;
+	//MGlobal::executeCommand(cmd);
+
+	oMeshFnShape->deleteEdge(id);
+	oMeshFnShape->syncObject();
+	oMeshFnShape->updateSurface();
+
+	MItMeshPolygon faceIter(outputMeshObj);
 
 	// change stitch type of lower index
 	cout << "min = " << min(connectedFaceIds[0],connectedFaceIds[1]) << endl;
@@ -923,12 +1063,12 @@ MStatus StitchMeshNode::RemoveWaleEdge(int id)
 	MGlobal::getActiveSelectionList(nodeSelection);
 	MObject selectedMObject;
 	nodeSelection.getDependNode(0, selectedMObject);
-	oMeshFnShape->copy(selectedMObject, outputMeshObj);
+	//oMeshFnShape->copy(selectedMObject, outputMeshObj);
 
 	cout << "numPoly = " << oMeshFnShape->numPolygons() << endl;
 
 	return MStatus::kSuccess;
-}*/
+}
 
 //======================================================================================================================//
 // Compute the new Node when the parameters are adjusted																//
@@ -963,26 +1103,21 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 		MObject outputMesh = MFnMeshData().create();
 		MFnMesh outputMeshFn = MFnMesh().copy(inputMesh, outputMesh);
 		outputMeshFn.setObject(outputMesh);
-
-		// initialize variables
-		if (callbackId == -1) {
-			for (int i = 0; i < inputMeshFn->numPolygons(); i++) {
-				faceLoopIndex.append(-1);
-				faceLoopNumber.append(-1);
-			}
-		}
 		
-		//--------------------------------------------------------------------------------------------------------------//
-		// Perform appropriate compute functionality																	//
-		//--------------------------------------------------------------------------------------------------------------//
-		
+		// Perform appropriate compute function
 		switch (nodeStage) {
 			
-			// User interaction stage for selecting edge loops in direction of stitch
 			//TODO: case (CLEAR_SELECTION):
+
+			// User interaction stage for selecting edge loops in direction of stitch
 			case (LOOP_SELECTION):
-				if (callbackId == -1)
+				if (callbackId == -1) {
+					for (int i = 0; i < inputMeshFn->numPolygons(); i++) {
+						faceLoopIndex.append(-1);
+						faceLoopNumber.append(-1);
+					}
 					callbackId = MEventMessage::addEventCallback("SelectionChanged", LabelEdgeRows, this);
+				}
 				MGlobal::executeCommand("selectType -pe 1");
 				break;
 
@@ -1006,23 +1141,13 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 
 			// Replace tessellated faces with stitch models			
 			case (YARN_GENERATION): {
-				float maxEdgeLength = -1;
-				MItMeshEdge subfaceEdges(outputMeshObj);
-				while (!subfaceEdges.isDone()) {
-					double length;
-					subfaceEdges.getLength(length);
-					if (maxEdgeLength < length || maxEdgeLength < 0)
-						maxEdgeLength = length;
-					subfaceEdges.next();
-				}
-				GenerateStitchCurves(1.0/maxEdgeLength);
-				//TODO: JoinStitchCurves();
-				//TODO: ExtrudeStitchCurves();
+				RelaxMesh();
+				GenerateStitches();
 				MGlobal::executeCommand(MString("hide ") + outputShapeName);
 				MGlobal::executeCommand("select " + this->name());
 				break;}
 
-			// Default switch case; should never reach this
+			// Default case; should never reach this
 			default:
 				break;
 		}

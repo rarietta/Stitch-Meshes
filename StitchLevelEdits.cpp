@@ -186,10 +186,10 @@ MStatus RemoveWaleEdgeCmd::doIt( const MArgList& args )
 	StitchMeshNode *node = (StitchMeshNode *)dep.userNode();
 
 	//TODO: Stitch Edit Function Implementation
-	//for (int i = 0; i < indices.length(); i++) {
-		//node->RemoveWaleEdge(indices[i]);
-		//node->oMeshFnShape->updateSurface();
-	//}
+	for (int i = 0; i < indices.length(); i++) {
+		node->RemoveWaleEdge(indices[i]);
+		node->oMeshFnShape->updateSurface();
+	}
 
 	MGlobal::executeCommand("setAttr " + nodeName + ".nodeStage 2");
 
