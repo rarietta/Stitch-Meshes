@@ -9,7 +9,7 @@
 #include <maya/MPointArray.h>
 #include <maya/MFloatArray.h>
 
-typedef MFloatArray MVCWeights;
+#include "MVC.h"
 
 //======================================================================================//
 // Class that extends MObject to account for necessary features							//

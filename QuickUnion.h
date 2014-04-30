@@ -9,8 +9,8 @@
 #include <vector>
 
 //======================================================================================//
-// Class that extends MObject to account for necessary features							//
-// of polygonal input mesh faces after stitch direction decisions						//
+// Implementation of QuickUnion taken from Robert Sedgwick at Princeton University		//
+// https://www.cs.princeton.edu/~rs/AlgsDS07/01UnionFind.pdf
 //======================================================================================//
 
 class QuickUnion

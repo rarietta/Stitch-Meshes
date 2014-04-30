@@ -51,3 +51,17 @@ MStatus PolyMeshFace::getCourseEdgeFwrd(int2& fwrdEdge) {
 	fwrdEdge[1] = courseEdgeFwrd[1];
 	return MStatus::kSuccess;
 }
+
+MStatus PolyMeshFace::getCage(MPointArray &cagePoints, MFnMesh &meshFn) {
+	
+	MPointArray pts;
+	meshFn.getPoints(pts);
+
+	cagePoints.clear();
+	for (int i = 0; i < courseEdgeBkwd.length(); i++)
+		cagePoints.append(pts[courseEdgeBkwd[i]]);
+	for (int i = 0; i < courseEdgeFwrd.length(); i++)
+		cagePoints.append(pts[courseEdgeFwrd[i]]);
+
+	return MStatus::kSuccess;
+}

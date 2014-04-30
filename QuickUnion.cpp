@@ -1,9 +1,14 @@
+
+//======================================================================================//
+// Implementation of QuickUnion taken from Robert Sedgwick at Princeton University		//
+// https://www.cs.princeton.edu/~rs/AlgsDS07/01UnionFind.pdf
+//======================================================================================//
+
 #include "QuickUnion.h"
 
-
-QuickUnion::~QuickUnion(void)
-{
-}
+//------------------------------------------------------//
+// initialize quick union data structure				//
+//------------------------------------------------------//
 
 QuickUnion::QuickUnion(int N)
 {
@@ -13,8 +18,15 @@ QuickUnion::QuickUnion(int N)
 	}
 }
 
-int
-QuickUnion::root(int i)
+QuickUnion::~QuickUnion(void)
+{
+}
+
+//------------------------------------------------------//
+// find root of any item								//
+//------------------------------------------------------//
+
+int QuickUnion::root(int i)
 {
 	while (i != id[i])
 	{
@@ -24,14 +36,20 @@ QuickUnion::root(int i)
 	return i;
 }
 
-bool
-QuickUnion::find(int p, int q)
+//------------------------------------------------------//
+// determine if two items are in union					//
+//------------------------------------------------------//
+
+bool QuickUnion::find(int p, int q)
 {
 	return root(p) == root(q);
 }
 
-void
-QuickUnion::unite(int p, int q)
+//------------------------------------------------------//
+// join to items into same union						//
+//------------------------------------------------------//
+
+void QuickUnion::unite(int p, int q)
 {
 	int i = root(p);
 	int j = root(q);

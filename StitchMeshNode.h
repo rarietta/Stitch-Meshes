@@ -110,14 +110,24 @@ public:
 	std::vector<Stitch> stitches;
 
 public:
+	
+	// initialization functions
+	MStatus CreateStitchLibrary(void);
 
 	// function for performing tessellation
-	MStatus CreateStitchLibrary(void);
-	MStatus TessellateInputMesh(float stitchSizeData, MFnMesh &outputMeshFn);
+	int		ComputeNumWaleDivisions(PolyMeshFaceLoop &currentLoop);
+	MStatus InterpolatePoints(vector<MPointArray> &stitchRowPts, PolyMeshFace &currentFace);
+	MStatus BuildSubfaces(vector<MPointArray> &stitchRowPts);
+	MStatus TessellateInputMesh();
+
+	// stitch level editing functions
 	MStatus ColorByStitchType(void);
-	MStatus ChangeStitchType(int faceId, int stitchType);
 	MStatus SetDefaultStitchType(int faceId);
+	MStatus ChangeStitchType(int faceId, int stitchType);
+	MStatus InsertWaleEdge(int vertexId1, int vertexId2);
 	MStatus RemoveWaleEdge(int id);
-	MStatus GenerateStitches();
+
+	// stitch generation functions
 	MStatus RelaxMesh();
+	MStatus GenerateStitches();
 };

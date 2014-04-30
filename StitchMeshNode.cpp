@@ -16,20 +16,25 @@
 // Some useful functions																								//
 //======================================================================================================================//
 
-#define McheckErr(stat,msg)				\
-	if ( MS::kSuccess != stat ) {		\
-		cerr << stat << ": " << msg;	\
-		return MStatus::kFailure;		\
+#define McheckErr(stat,msg)								\
+	if ( MS::kSuccess != stat ) {						\
+		cerr << stat << ": " << msg;					\
+		return MStatus::kFailure;						\
 	}
 
-#define LerpInt(v1,v2,pct)				\
+#define LerpInt(v1,v2,pct)								\
 	v1 + floor(pct*(v2-v1))
 
-#define LerpVec(v1,v2,pct)				\
+#define LerpVec(v1,v2,pct)								\
 	v1 + pct*(v2-v1)
 
-#define incrementWithWrap(index, size)	\
+#define incrementWithWrap(index, size)					\
 	(index + 1 < size) ? (index + 1) : 0
+
+#define selectNodeAndBreak								\
+	MGlobal::executeCommand("select " + this->name());	\
+	break;
+
 
 //======================================================================================================================//
 // Node variables																										//
@@ -45,6 +50,7 @@ MObject StitchMeshNode::outputMeshName;
 MTypeId StitchMeshNode::id( 0x00004 );
 MString inputShapeName;
 MString outputShapeName;
+float	stitchSize;
 
 //======================================================================================================================//
 // Initialize the Node Plugin																							//
@@ -474,251 +480,259 @@ void LabelEdgeRows(void * data)
 }
 
 //======================================================================================================================//
-// Tessellate the Input Mesh																							//
+// Tesselation Functions																								//
 //======================================================================================================================//
 
-MStatus StitchMeshNode::TessellateInputMesh(float stitchSizeData, MFnMesh &outputMeshFn)
+int StitchMeshNode::ComputeNumWaleDivisions(PolyMeshFaceLoop &currentLoop)
 {
-	//--------------------------------------------------------------------------------------------------------------//
-	// Iterate through all poly face edge loops to tesselate														//
-	//--------------------------------------------------------------------------------------------------------------//
-
-	MSubFaces.clear();
-	int subfaceId = 0;
-	int numPolyMeshFaceLoops = (int) MPolyMeshFaceLoops.size();
-	for (int n = 0; n < numPolyMeshFaceLoops; n++)
-	{
-		//----------------------------------------------------------------------------------------------------------//
-		// Find the average length of the wale edges in order to determine the uniform number of subdivisions		//
-		// along the entirety of the input face loop																//
-		//----------------------------------------------------------------------------------------------------------//
+	// local variables
+	int2 vertices; 
+	MPoint w0, w1;
+	double totalLength = 0.0;
 			
-		// get current poly mesh face loop
-		PolyMeshFaceLoop currentLoop = MPolyMeshFaceLoops[n];
+	// loop through all faces to examine wale edge lengths
+	for (int i = 0; i < currentLoop.size(); i++) {
 
-		// local variables
-		int2 vertices; 
-		MPoint w0, w1;
-		double totalLength = 0.0;
-			
-		// loop through all faces to examine wale edge lengths
-		for (int i = 0; i < currentLoop.size(); i++) {
+		// get first wale edge
+		PolyMeshFace currentFace = currentLoop[i];
+		currentFace.getWaleEdge1(vertices);
+		inputMeshFn->getPoint(vertices[0], w0);
+		inputMeshFn->getPoint(vertices[1], w1);
+		totalLength += (w1 - w0).length();
 
-			// get first wale edge
-			PolyMeshFace currentFace = currentLoop[i];
-			currentFace.getWaleEdge1(vertices);
+		// get second wale edge only for final face
+		// (assuming potential for unclosed loops)
+		if (i == currentLoop.size()-1) {
+			currentFace.getWaleEdge2(vertices);
 			inputMeshFn->getPoint(vertices[0], w0);
 			inputMeshFn->getPoint(vertices[1], w1);
 			totalLength += (w1 - w0).length();
+		}
+	} 
 
-			// get second wale edge only for final face
-			// (assuming potential for unclosed loops)
-			if (i == currentLoop.size()-1) {
-				currentFace.getWaleEdge2(vertices);
-				inputMeshFn->getPoint(vertices[0], w0);
-				inputMeshFn->getPoint(vertices[1], w1);
-				totalLength += (w1 - w0).length();
+	// divide total sum by number of edges
+	double avgLength = totalLength / (currentLoop.size() + 1);
+	int numWaleDivisions = ceil(avgLength / (stitchSize));
+	return numWaleDivisions;
+}
+
+MStatus StitchMeshNode::InterpolatePoints(vector<MPointArray> &stitchRowPts, PolyMeshFace &currentFace)
+{
+	// Determine the uniform number of wale divisions along the face loop
+	PolyMeshFaceLoop currentLoop = MPolyMeshFaceLoops[faceLoopNumber[currentFace.faceIndex]];
+	int numWaleDivisions = ComputeNumWaleDivisions(currentLoop);
+
+	// determine number of divisions along fwrd & bkwd course edges
+	MPointArray pts;
+	oMeshFnShape->getPoints(pts);
+	int numCourseDivisionsBkwd = 0;
+	int numCourseDivisionsFwrd = 0;
+	float courseLengthBkwd = 0.0;
+	float courseLengthFwrd = 0.0;
+
+	MIntArray courseVerticesBkwd;
+	currentFace.getCourseEdgeBkwd(courseVerticesBkwd);
+	for (int i = 0; i < courseVerticesBkwd.length()-1; i++) {
+		MVector courseEdgeBkwd = pts[courseVerticesBkwd[i+1]] - pts[courseVerticesBkwd[i]];
+		numCourseDivisionsBkwd += ceil(courseEdgeBkwd.length() / (stitchSize));
+		courseLengthBkwd += courseEdgeBkwd.length();
+	}
+			
+	MIntArray courseVerticesFwrd;
+	currentFace.getCourseEdgeFwrd(courseVerticesFwrd);
+	for (int i = 0; i < courseVerticesFwrd.length()-1; i++) {
+		MVector courseEdgeFwrd = pts[courseVerticesFwrd[i+1]] - pts[courseVerticesFwrd[i]];
+		numCourseDivisionsFwrd += ceil(courseEdgeFwrd.length() / (stitchSize));
+		courseLengthFwrd += courseEdgeFwrd.length();
+	}
+
+	// create mean-value coordinate instance for tessellation
+	MPointArray cagePoints;
+	currentFace.getCage(cagePoints, *oMeshFnShape);
+	MVC mvc(cagePoints);
+
+	// find and store all interpolated points
+	for (int u = 0; u <= numWaleDivisions; u++) 
+	{
+		double uPct = (double) u / numWaleDivisions;
+		int numRowPts = LerpInt(numCourseDivisionsBkwd, numCourseDivisionsFwrd, uPct);
+
+		for (int v = 0; v <= numRowPts; v++) 
+		{
+			double vPct = (double) v / numRowPts;
+			MVCWeights weights;
+			int i;
+
+			// determine backward weights
+			i = 0;
+			MVCWeights bkwdWeights;
+			MPoint bkwdOrigin = pts[courseVerticesBkwd[0]];
+			float bkwdDistance = vPct*courseLengthBkwd;
+			while (bkwdDistance > 1.0e-3)
+			{
+				MVector courseEdgeBkwd = pts[courseVerticesBkwd[i+1]] - pts[courseVerticesBkwd[i++]];
+				float factor = min(courseEdgeBkwd.length(), bkwdDistance) / courseEdgeBkwd.length();
+				bkwdOrigin += factor * courseEdgeBkwd;
+				bkwdDistance -= factor * courseEdgeBkwd.length();
 			}
-		} 
+			mvc.computeMVCWeights(bkwdWeights, bkwdOrigin);
 
-		// divide total sum by number of edges
-		double avgLength = totalLength / (currentLoop.size() + 1);
-		int numWaleDivisions = ceil(avgLength / (stitchSizeData));
+			// determine forward weights
+			i = 0;
+			MVCWeights fwrdWeights;
+			MPoint fwrdOrigin = pts[courseVerticesFwrd[0]];
+			float fwrdDistance = vPct*courseLengthFwrd;
+			while (fwrdDistance > 1.0e-3)
+			{
+				MVector courseEdgefwrd = pts[courseVerticesFwrd[i+1]] - pts[courseVerticesFwrd[i++]];
+				float factor = min(courseEdgefwrd.length(), fwrdDistance) / courseEdgefwrd.length();
+				fwrdOrigin += factor * courseEdgefwrd;
+				fwrdDistance -= factor * courseEdgefwrd.length();
+			}
+			mvc.computeMVCWeights(fwrdWeights, fwrdOrigin);
 
-		//----------------------------------------------------------------------------------------------------------//
-		// Loop through each face of the current loop to create tessellated polygon subfaces						//
-		//----------------------------------------------------------------------------------------------------------//
+			weights.clear();
+			for (int i = 0; i < courseVerticesBkwd.length(); i++)
+				weights.append(bkwdWeights[i] * (1.0 - uPct));
+			for (int i = courseVerticesBkwd.length(); i < cagePoints.length(); i++)
+				weights.append(fwrdWeights[i] * uPct);
+		
+			MPoint pt;
+			mvc.computeMVCPosition(weights, pt);
+			stitchRowPts[u].append(pt);
+		}
+	}
+	return MStatus::kSuccess;
+}
+
+MStatus StitchMeshNode::BuildSubfaces(vector<MPointArray> &stitchRowPts)
+{
+	int subfaceId = 0;
+	MPointArray vertexLoop;
+
+	for (int u = 0; u < stitchRowPts.size() - 1; u++) 
+	{
+		//--------------------------------------------------------------------------------------------------//
+		// Add regular quad face stitches																	//
+		//--------------------------------------------------------------------------------------------------//
+
+		// find smaller number of points between two consecutive stitch rows
+		int numPts1 = stitchRowPts[ u ].length();
+		int numPts2 = stitchRowPts[u+1].length();
+		int minRowPts = min(numPts1, numPts2);
+
+		// use this number to add quad stitch faces
+		for (int v = 0; v < minRowPts-1; v++)
+		{
+			// clear current subface vertex loop
+			vertexLoop.clear();
+
+			// get points in counterclockwise order
+			vertexLoop.append(stitchRowPts[ u ][ v ]);
+			vertexLoop.append(stitchRowPts[ u ][v+1]);
+			vertexLoop.append(stitchRowPts[u+1][v+1]);
+			vertexLoop.append(stitchRowPts[u+1][ v ]);
+					
+			// create output subface
+			SubFace subface(2, 2);
+			subface.bkwdPoints.clear();
+			subface.fwrdPoints.clear();
+			subface.bkwdPoints.append(stitchRowPts[ u ][ v ]);
+			subface.bkwdPoints.append(stitchRowPts[ u ][v+1]);
+			subface.fwrdPoints.append(stitchRowPts[u+1][ v ]);
+			subface.fwrdPoints.append(stitchRowPts[u+1][v+1]);
+			subface.stitchType = P;
+			subface.nBkwd = 2; subface.nFwrd = 2;
+			MSubFaces.push_back(subface);
+
+			// add polygon to mesh
+			oMeshFnShape->addPolygon(vertexLoop, subfaceId++, true, 1.0e-3);
+		}
+
+		//--------------------------------------------------------------------------------------------------//
+		// If the number of points in each row was not equal, add any										//
+		// remaining points as an increase / decrease face at the end of the stitch row						//
+		//--------------------------------------------------------------------------------------------------//
+
+		// backward edge has more points
+		if (numPts1 > numPts2) {
+			vertexLoop.clear();
+			for (int v = numPts2-1; v < numPts1; v++)
+				vertexLoop.append(stitchRowPts[u][v]);
+			vertexLoop.append(stitchRowPts[u+1][numPts2-1]);
+					
+			// create output subface
+			SubFace subface(2, 1);
+			subface.bkwdPoints.clear();
+			subface.fwrdPoints.clear();
+			for (int v = numPts2-1; v < numPts1; v++)
+				subface.bkwdPoints.append(stitchRowPts[u][v]);
+			subface.fwrdPoints.append(stitchRowPts[u+1][numPts2-1]);
+			subface.stitchType = X;
+			subface.nBkwd = 2; subface.nFwrd = 1;
+			MSubFaces.push_back(subface);
+					
+			// add polygon to mesh
+			oMeshFnShape->addPolygon(vertexLoop, subfaceId++);
+		}
+
+		// forward edge has more points
+		else if (numPts2 > numPts1) {
+			vertexLoop.clear();
+			vertexLoop.append(stitchRowPts[u][numPts1-1]);
+			for (int v = numPts2-1; v >= numPts1-1; v--)
+				vertexLoop.append(stitchRowPts[u+1][v]);
+					
+			// create output subface
+			SubFace subface(1, 2);
+			subface.bkwdPoints.clear();
+			subface.fwrdPoints.clear();
+			subface.bkwdPoints.append(stitchRowPts[u][numPts1-1]);
+			for (int v = numPts1-1; v < numPts2; v++)
+				subface.fwrdPoints.append(stitchRowPts[u+1][v]);
+			subface.stitchType = Y1;
+			subface.nBkwd = 1; subface.nFwrd = 2;
+			MSubFaces.push_back(subface);
+					
+			// add polygon to mesh
+			oMeshFnShape->addPolygon(vertexLoop, subfaceId++);
+		}
+	} 
+	return MStatus::kSuccess;
+}
+
+MStatus StitchMeshNode::TessellateInputMesh(void)
+{
+	MSubFaces.clear();
+	int numPolyMeshFaceLoops = (int) MPolyMeshFaceLoops.size();
+	
+	for (int n = 0; n < numPolyMeshFaceLoops; n++)
+	{
+		PolyMeshFaceLoop currentLoop = MPolyMeshFaceLoops[n];
+		int numWaleDivisions = ComputeNumWaleDivisions(currentLoop);
 
 		for (int f = 0; f < currentLoop.size(); f++)
 		{
-			//------------------------------------------------------------------------------------------------------//
-			// Get current PolyMeshFace																				//
-			//------------------------------------------------------------------------------------------------------//
-
 			PolyMeshFace currentFace = currentLoop[f];
 
-			//------------------------------------------------------------------------------------------------------//
-			// Determine edge direction data for current face (HACK FOR QUAD FACES)									//
-			//------------------------------------------------------------------------------------------------------//
-
-			MPoint v0, v1;
-			int2 waleVtxs;
-			MIntArray courseVtxs;
-				
-			// get backwards-first corner as origin
-			MPoint origin;
-			inputMeshFn->getPoint(currentFace.courseEdgeBkwd[0], origin);
-
-			// vector corresponding to first wale edge
-			MFloatVector wale1Dir;
-			currentFace.getWaleEdge1(waleVtxs); 
-			inputMeshFn->getPoint(waleVtxs[0], v0);
-			inputMeshFn->getPoint(waleVtxs[1], v1);
-			wale1Dir = v1-v0;
-
-			// vector corresponding to second wale edge
-			MFloatVector wale2Dir;
-			currentFace.getWaleEdge2(waleVtxs); 
-			inputMeshFn->getPoint(waleVtxs[0], v0);
-			inputMeshFn->getPoint(waleVtxs[1], v1);
-			wale2Dir = v1-v0;
-
-			// vector corresponding to backwards course edge
-			MFloatVector course1Dir;
-			currentFace.getCourseEdgeBkwd(courseVtxs);
-			inputMeshFn->getPoint(courseVtxs[0], v0);
-			inputMeshFn->getPoint(courseVtxs[1], v1);
-			course1Dir = v1-v0;
-				
-			// vector corresponding to forwards course edge
-			MFloatVector course2Dir;
-			currentFace.getCourseEdgeFwrd(courseVtxs);
-			inputMeshFn->getPoint(courseVtxs[0], v0);
-			inputMeshFn->getPoint(courseVtxs[1], v1);
-			course2Dir = v1-v0;
-
-			//------------------------------------------------------------------------------------------------------//
-			// Determine number of course edge subdivisions for the current face									//
-			//------------------------------------------------------------------------------------------------------//
-
-			double courseEdgeBkwdLength = course1Dir.length();
-			double courseEdgeFwrdLength = course2Dir.length();
-			int numCourseDivisionsBkwd = ceil(courseEdgeBkwdLength / (stitchSizeData));
-			int numCourseDivisionsFwrd = ceil(courseEdgeFwrdLength / (stitchSizeData));
-
-			//------------------------------------------------------------------------------------------------------//
-			// Create vector of MPointArrays to store interpolated stitch row points								//
-			// (including along course edges, so there are numWaleDivisions+1 stitch rows)							//
-			//------------------------------------------------------------------------------------------------------//
-
-			// allocate stitch row point arrays
+			// Create vector of MPointArrays to store interpolated points
 			vector<MPointArray> stitchRowPts;
-			for (int i = 0; i < stitchRowPts.size(); i++) { stitchRowPts[i].clear(); }
 			stitchRowPts.resize(numWaleDivisions + 1);
-				
-			// populate stitch row point arrays
-			for (int u = 0; u <= numWaleDivisions; u++) 
-			{
-				// u-direction percentage
-				double uPct = (double) u / numWaleDivisions;
+			for (int i = 0; i < stitchRowPts.size(); i++) { stitchRowPts[i].clear(); }
 
-				// determine number of points to add for current stitch row r
-				int numRowPts = LerpInt(numCourseDivisionsBkwd, numCourseDivisionsFwrd, uPct);
+			// Compute the interpolated points used for building tessellated faces
+			InterpolatePoints(stitchRowPts, currentFace);
 
-				// for each point in row
-				for (int v = 0; v <= numRowPts; v++) 
-				{
-					// v direction percentage
-					double vPct = (double) v / numRowPts;
-
-					// determine point location
-					MPoint pt = origin + wale1Dir*uPct + LerpVec(course1Dir*vPct, course2Dir*vPct, uPct);
-						
-					// add point to row-specific MPointArray
-					stitchRowPts[u].append(pt);
-				}
-			}
-
-			//------------------------------------------------------------------------------------------------------//
-			// Add interior faces to polygon based on stored stitch row points										//
-			//------------------------------------------------------------------------------------------------------//
-
-			MPointArray vertexLoop;
-
-			for (int u = 0; u < numWaleDivisions; u++) 
-			{
-				//--------------------------------------------------------------------------------------------------//
-				// Add regular quad face stitches																	//
-				//--------------------------------------------------------------------------------------------------//
-
-				// find smaller number of points between two consecutive stitch rows
-				int numPts1 = stitchRowPts[ u ].length();
-				int numPts2 = stitchRowPts[u+1].length();
-				int minRowPts = min(numPts1, numPts2);
-
-				// use this number to add quad stitch faces
-				for (int v = 0; v < minRowPts-1; v++)
-				{
-					// clear current subface vertex loop
-					vertexLoop.clear();
-
-					// get points in counterclockwise order
-					vertexLoop.append(stitchRowPts[ u ][ v ]);
-					vertexLoop.append(stitchRowPts[ u ][v+1]);
-					vertexLoop.append(stitchRowPts[u+1][v+1]);
-					vertexLoop.append(stitchRowPts[u+1][ v ]);
-					
-					// create output subface
-					SubFace subface(2, 2);
-					subface.bkwdPoints.clear();
-					subface.fwrdPoints.clear();
-					subface.bkwdPoints.append(stitchRowPts[ u ][ v ]);
-					subface.bkwdPoints.append(stitchRowPts[ u ][v+1]);
-					subface.fwrdPoints.append(stitchRowPts[u+1][ v ]);
-					subface.fwrdPoints.append(stitchRowPts[u+1][v+1]);
-					subface.stitchType = P;
-					subface.nBkwd = 2; subface.nFwrd = 2;
-					MSubFaces.push_back(subface);
-
-					// add polygon to mesh
-					outputMeshFn.addPolygon(vertexLoop, subfaceId++, true, 1.0e-3);
-				}
-
-				//--------------------------------------------------------------------------------------------------//
-				// If the number of points in each row was not equal, add any										//
-				// remaining points as an increase / decrease face at the end of the stitch row						//
-				//--------------------------------------------------------------------------------------------------//
-
-				// backward edge has more points
-				if (numPts1 > numPts2) {
-					vertexLoop.clear();
-					for (int v = numPts2-1; v < numPts1; v++)
-						vertexLoop.append(stitchRowPts[u][v]);
-					vertexLoop.append(stitchRowPts[u+1][numPts2-1]);
-					
-					// create output subface
-					SubFace subface(2, 1);
-					subface.bkwdPoints.clear();
-					subface.fwrdPoints.clear();
-					for (int v = numPts2-1; v < numPts1; v++)
-						subface.bkwdPoints.append(stitchRowPts[u][v]);
-					subface.fwrdPoints.append(stitchRowPts[u+1][numPts2-1]);
-					subface.stitchType = X;
-					subface.nBkwd = 2; subface.nFwrd = 1;
-					MSubFaces.push_back(subface);
-					
-					// add polygon to mesh
-					outputMeshFn.addPolygon(vertexLoop, subfaceId++);
-				}
-
-				// forward edge has more points
-				else if (numPts2 > numPts1) {
-					vertexLoop.clear();
-					vertexLoop.append(stitchRowPts[u][numPts1-1]);
-					for (int v = numPts2-1; v >= numPts1-1; v--)
-						vertexLoop.append(stitchRowPts[u+1][v]);
-					
-					// create output subface
-					SubFace subface(1, 2);
-					subface.bkwdPoints.clear();
-					subface.fwrdPoints.clear();
-					subface.bkwdPoints.append(stitchRowPts[u][numPts1-1]);
-					for (int v = numPts1-1; v < numPts2; v++)
-						subface.fwrdPoints.append(stitchRowPts[u+1][v]);
-					subface.stitchType = Y1;
-					subface.nBkwd = 1; subface.nFwrd = 2;
-					MSubFaces.push_back(subface);
-					
-					// add polygon to mesh
-					outputMeshFn.addPolygon(vertexLoop, subfaceId++);
-				}
-			} 
-		} // per PolyMeshFace loop
-	} // per PolyMeshFaceLoop loop
+			// Add interior faces to polygon based on stored stitch row points
+			BuildSubfaces(stitchRowPts);
+		}
+	}
 	
+	// delete original un-tesselated face
 	for (int i = 0; i < inputMeshFn->numPolygons(); i++)
-		outputMeshFn.deleteFace(0);
-	outputMeshFn.updateSurface();
+		oMeshFnShape->deleteFace(0);
+	oMeshFnShape->updateSurface();
+
 	return MStatus::kSuccess;
 }
 
@@ -768,6 +782,78 @@ MStatus StitchMeshNode::SetDefaultStitchType(int faceId)
 }
 
 //======================================================================================================================//
+// Stitch level editing functions																						//
+//======================================================================================================================//
+
+MStatus StitchMeshNode::ChangeStitchType(int faceId, int stitchType)
+{
+	SubFace sf = MSubFaces[faceId];
+	switch (stitchType) {
+		case (X):	  if (sf.nBkwd == 2 && sf.nFwrd == 1) { sf.stitchType = stitchType; } break;
+		case (Y1):	  if (sf.nBkwd == 1 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (S):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (K):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (P):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (SK):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
+		case (KP):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
+		case (D12K):  if (sf.nBkwd == 3 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (K1Y):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
+		case (PY):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
+		case (YKY):   if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
+		case (KYK):	  if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
+		case (KPK):	  if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
+		case (D312P): if (sf.nBkwd == 4 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		case (D123K): if (sf.nBkwd == 4 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
+		default: SetDefaultStitchType(faceId); break;
+	}
+	MSubFaces[faceId] = sf;
+	return MStatus::kSuccess;
+}
+
+MStatus StitchMeshNode::RemoveWaleEdge(int id)
+{
+	//oMeshFnShape->setObject(outputMeshObj);
+	
+	int p;
+	MItMeshEdge edgeIter(outputMeshObj);
+	edgeIter.setIndex(id, p);
+		
+	// assert edge is wale edge
+	// TODO
+
+	// find two connected faces
+	MIntArray connectedFaceIds;
+	edgeIter.getConnectedFaces(connectedFaceIds);
+	int minId = min(connectedFaceIds[0],connectedFaceIds[1]);
+	int maxId = max(connectedFaceIds[0],connectedFaceIds[1]);
+	SubFace subface1 = MSubFaces[minId];
+	SubFace subface2 = MSubFaces[maxId];
+		
+	// find sum of numBkwd values and sum of numFwrd values
+	int bSum = subface1.nBkwd + subface2.nBkwd - 1;
+	int fSum = subface1.nFwrd + subface2.nFwrd - 1;
+	if ((bSum > 4) || (fSum > 4)) return MStatus::kInvalidParameter;
+		
+	// set numBkwd and numFwrd for combined face
+	subface1.nBkwd = bSum;
+	subface1.nFwrd = fSum;
+	MSubFaces[minId] = subface1;
+	SetDefaultStitchType(minId);
+
+	// delete edge
+	oMeshFnShape->deleteEdge(id);
+	oMeshFnShape->updateSurface();
+	MSubFaces.erase(MSubFaces.begin() + maxId);
+
+	return MStatus::kSuccess;
+}
+
+MStatus StitchMeshNode::InsertWaleEdge(int vertexId1, int vertexId2)
+{
+	return MStatus::kSuccess;
+}
+
+//======================================================================================================================//
 // Functions for relaxing the stitch mesh and generating the stitches													//
 //======================================================================================================================//
 
@@ -806,7 +892,6 @@ MStatus StitchMeshNode::GenerateStitches(void)
 			maxEdgeLength = length;
 		subfaceEdges.next();
 	}
-	float stitchSize = maxEdgeLength;
 	float offset = 1.0 / maxEdgeLength;
 
 	MPointArray vertices;
@@ -814,7 +899,7 @@ MStatus StitchMeshNode::GenerateStitches(void)
 	MItMeshPolygon subfaceIter(outputMeshObj);
 	int p;
 
-	MString circleCmd = MString("circle -c 0 0 0 -nr 0 1 0 -sw 360 -r ") + ((float) stitchSize / 13.0f) 
+	MString circleCmd = MString("circle -c 0 0 0 -nr 0 1 0 -sw 360 -r ") + ((float) maxEdgeLength / 13.0f) 
 					  + MString(" -d 3 -ut 0 -tol 0.01 -s 8 -ch 1 -name \"extrudingCircle\";");
 	MGlobal::executeCommand(circleCmd);
 
@@ -863,10 +948,10 @@ MStatus StitchMeshNode::GenerateStitches(void)
 			{
 				// position in plane
 				MPoint cv(0,0,0);
+				MVC mvc(subfaceCage);
 				MVCWeights weights = yc.CVweights[k];
-				for (int w = 0; w < weights.length(); w++)
-					cv += weights[w] * MVector(subfaceCage[w]);
-						
+				mvc.computeMVCPosition(weights, cv);
+				
 				// offset from plane
 				cv += yc.CVoffsets[k] * subfaceNormal * offset * 3.0f;
 				if (k == 0 || k == yc.CVweights.size()-1) curve_endpoints[numTotalCurves].push_back(cv);
@@ -891,7 +976,6 @@ MStatus StitchMeshNode::GenerateStitches(void)
 		}
 	}
 	
-	cout << "number of curves = " << curve_names.size() << endl;
 	// Weighted Quick Union Algorithm with Path Compression for combining continuous stitch curves
 	QuickUnion curveQU(numTotalCurves);
 	for (int this_curveId = 0; this_curveId < numTotalCurves; this_curveId++)
@@ -910,10 +994,10 @@ MStatus StitchMeshNode::GenerateStitches(void)
 				int that_curveId = subface_curveIds[connectedFaces[j]][k];
 				MString that_curve = "stitchCurve_" + that_curveId;
 
-				if (((curve_endpoints[this_curveId][0]-curve_endpoints[that_curveId][0]).length() < 1.0e-5) ||
-					((curve_endpoints[this_curveId][0]-curve_endpoints[that_curveId][1]).length() < 1.0e-5) ||
-					((curve_endpoints[this_curveId][1]-curve_endpoints[that_curveId][0]).length() < 1.0e-5) ||
-					((curve_endpoints[this_curveId][1]-curve_endpoints[that_curveId][1]).length() < 1.0e-5))
+				if (((curve_endpoints[this_curveId][0]-curve_endpoints[that_curveId][0]).length() < 1.0e-2 * maxEdgeLength) ||
+					((curve_endpoints[this_curveId][0]-curve_endpoints[that_curveId][1]).length() < 1.0e-2 * maxEdgeLength) ||
+					((curve_endpoints[this_curveId][1]-curve_endpoints[that_curveId][0]).length() < 1.0e-2 * maxEdgeLength) ||
+					((curve_endpoints[this_curveId][1]-curve_endpoints[that_curveId][1]).length() < 1.0e-2 * maxEdgeLength))
 				{
 					curveQU.unite(this_curveId, that_curveId);
 				}
@@ -977,100 +1061,6 @@ MStatus StitchMeshNode::GenerateStitches(void)
 }
 
 //======================================================================================================================//
-// Stitch level editing functions																						//
-//======================================================================================================================//
-
-MStatus StitchMeshNode::ChangeStitchType(int faceId, int stitchType)
-{
-	SubFace sf = MSubFaces[faceId];
-	switch (stitchType) {
-		case (X):	  if (sf.nBkwd == 2 && sf.nFwrd == 1) { sf.stitchType = stitchType; } break;
-		case (Y1):	  if (sf.nBkwd == 1 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
-		case (S):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
-		case (K):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
-		case (P):	  if (sf.nBkwd == 2 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
-		case (SK):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
-		case (KP):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
-		case (D12K):  if (sf.nBkwd == 3 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
-		case (K1Y):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
-		case (PY):	  if (sf.nBkwd == 2 && sf.nFwrd == 3) { sf.stitchType = stitchType; } break;
-		case (YKY):   if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
-		case (KYK):	  if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
-		case (KPK):	  if (sf.nBkwd == 2 && sf.nFwrd == 4) { sf.stitchType = stitchType; } break;
-		case (D312P): if (sf.nBkwd == 4 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
-		case (D123K): if (sf.nBkwd == 4 && sf.nFwrd == 2) { sf.stitchType = stitchType; } break;
-	}
-	MSubFaces[faceId] = sf;
-	return MStatus::kSuccess;
-}
-
-MStatus StitchMeshNode::RemoveWaleEdge(int id)
-{
-	//oMeshFnShape->setObject(outputMeshObj);
-	
-	int p;
-	MItMeshEdge edgeIter(outputMeshObj);
-	edgeIter.setIndex(id, p);
-		
-	// assert edge is wale edge
-	// TODO
-
-	// find two connected faces
-	MIntArray connectedFaceIds;
-	edgeIter.getConnectedFaces(connectedFaceIds);
-	int minId = min(connectedFaceIds[0],connectedFaceIds[1]);
-	int maxId = max(connectedFaceIds[0],connectedFaceIds[1]);
-	SubFace subface1 = MSubFaces[minId];
-	SubFace subface2 = MSubFaces[maxId];
-		
-	// find sum of numBkwd values and sum of numFwrd values
-	int bSum = subface1.nBkwd + subface2.nBkwd - 1;
-	int fSum = subface1.nFwrd + subface2.nFwrd - 1;
-		
-	// assert neither sum is > 4
-	if ((bSum > 4) || (fSum > 4)) return MStatus::kInvalidParameter;
-		
-	// set numBkwd and numFwrd for combined face
-	subface1.nBkwd = bSum;
-	subface1.nFwrd = fSum;
-	MSubFaces[minId] = subface1;
-	//MSubFaces.erase(MSubFaces.begin() + maxId);
-	for (int i = 0; i < MSubFaces.size(); i++)
-		cout << i << ": numBkwd = " << MSubFaces[i].nBkwd << ", nFwrd = " << MSubFaces[i].nFwrd << endl;
-
-	// delete edge
-	cout << "numPoly = " << oMeshFnShape->numPolygons() << endl;
-	//MString cmd = "select -r " + outputShapeName + ".e[" + id + "]; doDelete;";
-	//cout << "cmd = " << cmd << endl;
-	//MGlobal::executeCommand(cmd);
-	//cout << "numPoly = " << oMeshFnShape->numPolygons() << endl;
-	//cmd = "select -r " + outputShapeName + ".f[" + maxId + "]; doDelete;";
-	//cout << "cmd = " << cmd << endl;
-	//MGlobal::executeCommand(cmd);
-
-	oMeshFnShape->deleteEdge(id);
-	oMeshFnShape->syncObject();
-	oMeshFnShape->updateSurface();
-
-	MItMeshPolygon faceIter(outputMeshObj);
-
-	// change stitch type of lower index
-	cout << "min = " << min(connectedFaceIds[0],connectedFaceIds[1]) << endl;
-	SetDefaultStitchType(minId);
-	
-	MGlobal::executeCommand("select " + outputShapeName);
-	MSelectionList nodeSelection;
-	MGlobal::getActiveSelectionList(nodeSelection);
-	MObject selectedMObject;
-	nodeSelection.getDependNode(0, selectedMObject);
-	//oMeshFnShape->copy(selectedMObject, outputMeshObj);
-
-	cout << "numPoly = " << oMeshFnShape->numPolygons() << endl;
-
-	return MStatus::kSuccess;
-}
-
-//======================================================================================================================//
 // Compute the new Node when the parameters are adjusted																//
 //======================================================================================================================//
 
@@ -1086,7 +1076,7 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 
 		// Get default stitch size data
 		MDataHandle stitchSizeHandle = data.inputValue(attr_stitchSize);
-		float stitchSize = stitchSizeHandle.asFloat();
+		stitchSize = stitchSizeHandle.asFloat();
 
 		// Get stitch generation stage data
 		MDataHandle nodeStageHandle = data.inputValue(attr_nodeStage);
@@ -1100,9 +1090,7 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 
 		// Get output attribute data
 		MDataHandle outMeshHandle = data.outputValue(attr_outMesh);
-		MObject outputMesh = MFnMeshData().create();
-		MFnMesh outputMeshFn = MFnMesh().copy(inputMesh, outputMesh);
-		outputMeshFn.setObject(outputMesh);
+		if (oMeshFnShape == NULL) oMeshFnShape = new MFnMesh;
 		
 		// Perform appropriate compute function
 		switch (nodeStage) {
@@ -1118,34 +1106,30 @@ MStatus StitchMeshNode::compute(const MPlug& plug, MDataBlock& data)
 					}
 					callbackId = MEventMessage::addEventCallback("SelectionChanged", LabelEdgeRows, this);
 				}
-				MGlobal::executeCommand("selectType -pe 1");
-				break;
+				selectNodeAndBreak;
 
 			// Tessellate mesh according to stitch size
 			case (TESSELLATION):
 				if (numLoopFaces == inputMeshFn->numPolygons()) {
-					TessellateInputMesh(stitchSize, outputMeshFn);
-					outMeshHandle.set(outputMesh);
-					if (oMeshFnShape == NULL) oMeshFnShape = new MFnMesh;
-					oMeshFnShape->copy(outputMesh, outputMeshObj);
-				}
-				MGlobal::executeCommand("select " + this->name());
-				break;
+					outputMeshObj = MFnMeshData().create();
+					oMeshFnShape->copy(inputMesh, outputMeshObj);
+					oMeshFnShape->setObject(outputMeshObj);
+					TessellateInputMesh();
+					outMeshHandle.set(outputMeshObj);
+				} selectNodeAndBreak;
 
 			// Update output mesh colors to for stitch level editing			
 			case (STITCH_EDITING):
 				StitchMeshNode::ColorByStitchType();
 				outMeshHandle.setMObject(outputMeshObj);
-				MGlobal::executeCommand("select " + this->name());
-				break;
+				selectNodeAndBreak;
 
 			// Replace tessellated faces with stitch models			
-			case (YARN_GENERATION): {
+			case (YARN_GENERATION):
 				RelaxMesh();
 				GenerateStitches();
 				MGlobal::executeCommand(MString("hide ") + outputShapeName);
-				MGlobal::executeCommand("select " + this->name());
-				break;}
+				selectNodeAndBreak;
 
 			// Default case; should never reach this
 			default:

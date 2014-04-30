@@ -20,6 +20,7 @@
 #include <maya/MPlug.h>
 #include <maya/MDataBlock.h>
 #include <maya/MFnMeshData.h>
+#include <maya/MPointArray.h>
 
 #include <maya/MIOStream.h>
 
@@ -45,4 +46,5 @@ public:
 	MStatus		getCourseEdgeFwrd(MIntArray& FwrdEdge);
 	MStatus		getCourseEdgeBkwd(int2& bkwdEdge);
 	MStatus		getCourseEdgeFwrd(int2& FwrdEdge);
+	MStatus		getCage(MPointArray &cagePoints, MFnMesh &meshFn);
 };
